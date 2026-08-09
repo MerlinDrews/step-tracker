@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AIWCD Step Counter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Raleway:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./config.js"></script>
+  </head>
+  <body>
+    <!-- WIDGET_MARKUP_START -->
+    <div id="aiwcd-step-counter">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <div class="brand-block">
+            <a class="brand-kicker" href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">
+              AIWCD
+            </a>
+            <p class="brand">Step Counter</p>
+          </div>
+          <span id="mode-badge" class="badge" data-mode="local">Local mock</span>
+        </div>
+      </header>
+
+      <div class="page">
+        <section class="hero" aria-labelledby="total-heading">
+          <p class="hero__eyebrow">American International Women’s Club of Düsseldorf</p>
+          <h1 id="total-heading" class="hero__label">Total steps (all time)</h1>
+          <p id="total-steps" class="hero__total">0</p>
+        </section>
+
+        <section class="panel" aria-labelledby="log-heading">
+          <h2 id="log-heading" class="panel__title">Log steps</h2>
+
+          <div id="signed-out">
+            <p class="lede">Sign in with your AIWCD club account to save steps.</p>
+            <div id="mock-users" class="stack"></div>
+            <button id="club-login" type="button" class="btn btn--primary" hidden>
+              Sign in with club account
+            </button>
+          </div>
+
+          <div id="signed-in" hidden>
+            <div class="member-bar">
+              <p>
+                Signed in as <strong id="member-name"></strong>
+              </p>
+              <button id="sign-out" type="button" class="linkish">Sign out</button>
+            </div>
+
+            <div class="calendar" aria-label="Choose a day to edit">
+              <div class="calendar__nav">
+                <button id="cal-prev" type="button" class="calendar__nav-btn" aria-label="Previous month">‹</button>
+                <p id="cal-label" class="calendar__label">Month</p>
+                <button id="cal-next" type="button" class="calendar__nav-btn" aria-label="Next month">›</button>
+              </div>
+              <div class="calendar__dow" aria-hidden="true">
+                <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+              </div>
+              <div id="cal-grid" class="calendar__grid"></div>
+              <p class="calendar__hint">Tap a day to edit steps. Days with a saved entry are marked.</p>
+            </div>
+
+            <label class="field" for="date-input">
+              <span class="field__label">Selected day</span>
+              <input id="date-input" class="field__input field__input--date" type="date" />
+            </label>
+
+            <label class="field" for="steps-input">
+              <span id="steps-label" class="field__label">Steps</span>
+              <input
+                id="steps-input"
+                class="field__input"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                max="100000"
+                step="1"
+                placeholder="e.g. 8432"
+              />
+            </label>
+
+            <button id="save-btn" type="button" class="btn btn--primary btn--block">
+              Save steps
+            </button>
+          </div>
+
+          <p id="form-error" class="msg msg--error" hidden></p>
+          <p id="form-success" class="msg msg--ok" hidden></p>
+        </section>
+
+        <section class="panel" aria-labelledby="board-heading">
+          <h2 id="board-heading" class="panel__title">Leaderboard</h2>
+          <ol id="leaderboard" class="leaderboard"></ol>
+        </section>
+
+        <footer class="site-footer">
+          <a href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">
+            www.aiwcduesseldorf.org
+          </a>
+        </footer>
+      </div>
+    </div>
+    <!-- WIDGET_MARKUP_END -->
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
