@@ -16,21 +16,10 @@
   <body>
     <!-- WIDGET_MARKUP_START -->
     <div id="aiwcd-step-counter">
-      <header class="site-header">
-        <div class="site-header__inner">
-          <div class="brand-block">
-            <a class="brand-kicker" href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">
-              AIWCD
-            </a>
-            <p class="brand">Step Counter</p>
-          </div>
-          <span id="mode-badge" class="badge" data-mode="local">Local mock</span>
-        </div>
-      </header>
-
       <div class="page">
+        <span id="mode-badge" class="badge badge--inline" data-mode="local" hidden>Local mock</span>
+
         <section class="hero" aria-labelledby="total-heading">
-          <p class="hero__eyebrow">American International Women’s Club of Düsseldorf</p>
           <h1 id="total-heading" class="hero__label">Total steps (all time)</h1>
           <p id="total-steps" class="hero__total">0</p>
         </section>
@@ -99,12 +88,6 @@
           <h2 id="board-heading" class="panel__title">Leaderboard</h2>
           <ol id="leaderboard" class="leaderboard"></ol>
         </section>
-
-        <footer class="site-footer">
-          <a href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">
-            www.aiwcduesseldorf.org
-          </a>
-        </footer>
       </div>
     </div>
     <!-- WIDGET_MARKUP_END -->

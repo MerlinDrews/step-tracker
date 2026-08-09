@@ -178,8 +178,14 @@ function setupAuthUi() {
     root.classList.add('embedded');
   }
   if (els.modeBadge) {
-    els.modeBadge.textContent = api.mode === 'local' ? 'Local mock' : 'Production';
-    els.modeBadge.dataset.mode = api.mode;
+    // Only show mode badge during local development
+    if (api.mode === 'local' && !config.EMBEDDED) {
+      els.modeBadge.hidden = false;
+      els.modeBadge.textContent = 'Local mock';
+      els.modeBadge.dataset.mode = 'local';
+    } else {
+      els.modeBadge.hidden = true;
+    }
   }
 
   if (api.mode === 'local') {
