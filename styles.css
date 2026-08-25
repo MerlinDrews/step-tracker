@@ -105,6 +105,12 @@ body {
   margin: 0 0 0.75rem;
 }
 
+/* .badge--inline { display } must not override [hidden] */
+.aiwcd-step-counter .badge[hidden],
+.aiwcd-step-counter #mode-badge:empty {
+  display: none !important;
+}
+
 .aiwcd-step-counter .page {
   width: min(640px, calc(100% - 2rem));
   margin: 0 auto;

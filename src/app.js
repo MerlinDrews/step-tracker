@@ -456,9 +456,8 @@ function setupAuthUi() {
       els.modeBadge.textContent = `Local mock · ${part}`;
       els.modeBadge.dataset.mode = 'local';
     } else {
-      els.modeBadge.hidden = true;
-      els.modeBadge.textContent = '';
-      delete els.modeBadge.dataset.mode;
+      els.modeBadge.remove();
+      els.modeBadge = null;
     }
   }
 
@@ -567,6 +566,7 @@ function setupForm() {
     }
 
     els.saveBtn.disabled = true;
+    setLoading(true, 'Saving steps…');
     try {
       const res = await api.logSteps(validated.steps, selectedDate);
       if (!res.ok) {
@@ -581,8 +581,22 @@ function setupForm() {
       );
       updateFormLabels();
       renderCalendar();
+      // Keep club total + leaderboard in sync with the save response (or refetch).
+      if (res.totals) {
+        renderPublicTotal(res.totals.totalSteps);
+        if (part === 'all' || part === 'leaderboard') {
+          showBoardContent(res.totals);
+        }
+      } else if (part === 'all' || part === 'total' || part === 'leaderboard') {
+        await initTotal();
+        if (part === 'all' || part === 'leaderboard') {
+          const board = await api.getLeaderboard();
+          if (board.ok) showBoardContent(board.totals);
+        }
+      }
     } finally {
       els.saveBtn.disabled = false;
+      setLoading(false);
     }
   });
 }
@@ -625,7 +639,10 @@ async function initTotal() {
 }
 
 async function initLeaderboard() {
-  showBoardGate({ needsConnect: !api.hasSession() });
+  // Avoid flashing the Connect button while we still might auto-SSO.
+  if (els.boardGate) els.boardGate.hidden = true;
+  if (els.boardContent) els.boardContent.hidden = true;
+
   const board = await api.getLeaderboard();
   if (maybeAutoConnect(board)) {
     setLoading(true, 'Connecting to club login…');
@@ -647,12 +664,14 @@ async function initLeaderboard() {
 }
 
 async function initTrack() {
-  showTrackCta();
   updateFormLabels();
   renderCalendar();
 
   const me = await api.getMe(selectedDate);
-  if (maybeAutoConnect(me)) return;
+  if (maybeAutoConnect(me)) {
+    setLoading(true, 'Connecting to club login…');
+    return;
+  }
 
   if (me.ok) {
     showTrackApp(me.member);
@@ -670,6 +689,31 @@ async function initTrack() {
   }
 }
 
+/**
+ * Prod: start WA SSO immediately when there is no session (no Connect click).
+ * @returns {Promise<boolean>} true if a redirect was started
+ */
+async function maybeStartProdLogin() {
+  if (api.mode !== 'prod') return false;
+  if (api.hasSession()) return false;
+  if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
+  if (!getConfig().APPS_SCRIPT_URL) return false;
+
+  authRedirectStarted = true;
+  sessionStorage.setItem(AUTH_ATTEMPT_KEY, '1');
+  setLoading(true, 'Connecting to club login…');
+  try {
+    await api.startClubLogin();
+  } catch (err) {
+    authRedirectStarted = false;
+    sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
+    setLoading(false);
+    setMessage(els.formErrorBoard, err?.message || String(err));
+    return false;
+  }
+  return true;
+}
+
 async function init() {
   showPartSections();
 
@@ -683,6 +727,14 @@ async function init() {
   setupCalendar();
   setupForm();
 
+  // Hide auth-gated panels until we know the session state (stops Connect flash).
+  if (api.mode === 'prod') {
+    if (els.boardGate) els.boardGate.hidden = true;
+    if (els.boardContent) els.boardContent.hidden = true;
+    if (els.trackCta) els.trackCta.hidden = true;
+    if (els.trackApp) els.trackApp.hidden = true;
+  }
+
   setLoading(true, 'Loading step tracker…');
   try {
     if (api.completeOAuthFromRedirect) {
@@ -690,12 +742,21 @@ async function init() {
       const oauth = await api.completeOAuthFromRedirect();
       if (oauth && oauth.ok === false) {
         setMessage(els.formErrorBoard, oauth.error);
+      } else if (oauth && oauth.ok && !oauth.skipped) {
+        sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
       }
     }
 
-    if (part === 'all') {
+    // Public total needs no auth — show it while SSO may redirect.
+    if (part === 'all' || part === 'total') {
       setLoading(true, 'Loading totals…');
       await initTotal();
+    }
+
+    // Auto SSO before painting Connect / Walkathon CTAs.
+    if (await maybeStartProdLogin()) return;
+
+    if (part === 'all') {
       setLoading(true, 'Loading leaderboard…');
       await initLeaderboard();
       if (authRedirectStarted) return;
@@ -704,7 +765,6 @@ async function init() {
       return;
     }
     if (part === 'total') {
-      await initTotal();
       return;
     }
     if (part === 'leaderboard') {
