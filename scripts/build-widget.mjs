@@ -1,19 +1,18 @@
 /**
- * Build one production Wild Apricot Custom HTML gadget with all three surfaces:
- * club total + leaderboard + Walkathon track.
+ * Build a Wild Apricot Custom HTML launcher gadget.
  *
- * Always production: no local mock API, no mock sign-in UI.
- * One paste → one script → no multi-gadget races on a WA page.
+ * WA CSP blocks Apps Script, so this is NOT the full app — it shows the public
+ * club total when we can bake/fetch it, plus a single CTA to the hosted tracker
+ * (GitHub Pages).
  *
  * Usage:
- *   APPS_SCRIPT_URL='https://script.google.com/...' WA_SITE_URL='https://www.aiwcduesseldorf.org' npm run build:widget
+ *   APPS_SCRIPT_URL='https://script.google.com/...' \
+ *   WA_SITE_URL='https://www.aiwcduesseldorf.org' \
+ *   APP_URL='https://you.github.io/step-tracker/' \
+ *   npm run build:widget
  *
- * Output:
- *   dist/aiwcd-steps-widget.html
- *
- * Limit: Wild Apricot Custom HTML max ~2,048,000 characters per gadget
+ * Output: dist/aiwcd-steps-widget.html
  */
-import * as esbuild from 'esbuild';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,120 +23,112 @@ const MAX_CHARS = 2_048_000;
 
 const appsScriptUrl = process.env.APPS_SCRIPT_URL || 'REPLACE_WITH_APPS_SCRIPT_WEB_APP_URL';
 const waSiteUrl = process.env.WA_SITE_URL || 'https://www.aiwcduesseldorf.org';
-const joinUrl = process.env.JOIN_URL || '';
-/** Hosted interactive app (GitHub Pages). Required — WA CSP blocks Apps Script from the embed. */
-const appUrl = process.env.APP_URL || '';
+const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
 
 const outdir = path.join(ROOT, 'dist');
 await fs.mkdir(outdir, { recursive: true });
 
-const apiJs = path.join(ROOT, 'src/api.js');
-const apiWidgetJs = path.join(ROOT, 'src/api.widget.js');
-
-const bundle = await esbuild.build({
-  entryPoints: [path.join(ROOT, 'src/app.js')],
-  bundle: true,
-  format: 'iife',
-  platform: 'browser',
-  target: ['es2018'],
-  write: false,
-  minify: true,
-  legalComments: 'none',
-  plugins: [
-    {
-      name: 'widget-prod-api',
-      setup(build) {
-        build.onResolve({ filter: /(?:^|\/)api\.js$/ }, (args) => {
-          const resolved = path.resolve(args.resolveDir, args.path);
-          if (resolved === apiJs) {
-            return { path: apiWidgetJs };
-          }
-        });
-      },
-    },
-  ],
-});
-
-const js = bundle.outputFiles[0].text;
-if (js.includes('step-counter-local-session') || js.includes('Local API unavailable')) {
-  console.error('ERROR: widget bundle still contains local mock API code');
-  process.exit(1);
+/** Best-effort bake of public total at build time (WA page cannot fetch Apps Script). */
+let bakedTotal = null;
+if (!appsScriptUrl.includes('REPLACE_WITH')) {
+  try {
+    const res = await fetch(`${appsScriptUrl.replace(/\/$/, '')}?action=public_total`, {
+      redirect: 'follow',
+    });
+    const data = await res.json();
+    if (data && data.ok && typeof data.totalSteps === 'number') {
+      bakedTotal = data.totalSteps;
+      console.log(`Baked public total: ${bakedTotal}`);
+    }
+  } catch (err) {
+    console.log(`Could not bake public total (${err.message || err}) — CTA-only fallback`);
+  }
 }
 
 let css = await fs.readFile(path.join(ROOT, 'styles.css'), 'utf8');
 css = css.replace(/^body\s*\{[^}]*\}\s*/m, '');
 
-const indexHtml = await fs.readFile(path.join(ROOT, 'index.html'), 'utf8');
-const markupMatch = indexHtml.match(
-  /<!-- WIDGET_MARKUP_START -->\s*([\s\S]*?)\s*<!-- WIDGET_MARKUP_END -->/,
-);
-if (!markupMatch) {
-  throw new Error('Could not find WIDGET_MARKUP_START/END markers in index.html');
-}
+const trackerHref = appUrl || '#';
+const totalLabel =
+  bakedTotal === null ? '' : Number(bakedTotal).toLocaleString('en-US');
+const showTotalBlock = bakedTotal !== null;
 
-/** Strip local-dev-only chrome; keep all three sections visible. */
-function prepareMarkup(baseMarkup) {
-  let markup = baseMarkup.trim();
-  markup = markup
-    .replace(/<span id="mode-badge"[\s\S]*?<\/span>\s*/i, '')
-    .replace(/<div id="mock-users"[\s\S]*?<\/div>\s*/i, '')
-    .replace(/<div id="mock-users-board"[\s\S]*?<\/div>\s*/i, '');
+const markup = `
+<div id="aiwcd-step-counter" class="aiwcd-step-counter embedded launcher" data-aiwcd-part="launcher">
+  <div class="page">
+    ${
+      showTotalBlock
+        ? `<section class="hero" aria-labelledby="total-heading">
+      <h1 id="total-heading" class="hero__label">Club total</h1>
+      <p id="launcher-total" class="hero__total">${totalLabel}</p>
+    </section>`
+        : ''
+    }
+    <section class="panel launcher__cta" aria-labelledby="launcher-heading">
+      <h2 id="launcher-heading" class="panel__title">Club step tracker</h2>
+      <p class="lede">See the leaderboard, connect your club login, and log Walkathon steps.</p>
+      <p>
+        <a id="launcher-open" class="btn btn--primary" href="${trackerHref}">Go to the step tracker</a>
+      </p>
+      ${
+        appUrl
+          ? ''
+          : `<p class="msg msg--error">Rebuild with APP_URL set to your GitHub Pages tracker URL.</p>`
+      }
+    </section>
+  </div>
+</div>
+`.trim();
 
-  const rootId = 'aiwcd-step-counter';
-  markup = markup.replace(
-    /id="aiwcd-step-counter"/,
-    `id="${rootId}" data-aiwcd-part="all"`,
-  );
+// Tiny client: try live public_total (works off WA; usually blocked on WA by CSP).
+const launcherJs = `
+(function () {
+  var api = ${JSON.stringify(appsScriptUrl.replace(/\/$/, ''))};
+  var baked = ${JSON.stringify(bakedTotal)};
+  var root = document.getElementById('aiwcd-step-counter');
+  if (!root || !api || api.indexOf('REPLACE_WITH') === 0) return;
 
-  // Show every section immediately (no JS-dependent unhide).
-  for (const section of ['section-total', 'section-track', 'section-leaderboard']) {
-    markup = markup.replace(
-      new RegExp(`(<section id="${section}"[^>]*)\\s+hidden`, 'i'),
-      '$1',
-    );
+  function formatSteps(n) {
+    return (Number(n) || 0).toLocaleString('en-US');
   }
 
-  // Prod CTAs visible without waiting for JS.
-  markup = markup
-    .replace(/(<p id="board-gate-action"[^>]*)\s+hidden/i, '$1')
-    .replace(/(<p id="track-cta-action"[^>]*)\s+hidden/i, '$1');
+  function ensureTotalEl() {
+    var el = document.getElementById('launcher-total');
+    if (el) return el;
+    var page = root.querySelector('.page');
+    if (!page) return null;
+    var section = document.createElement('section');
+    section.className = 'hero';
+    section.setAttribute('aria-labelledby', 'total-heading');
+    section.innerHTML = '<h1 id="total-heading" class="hero__label">Club total</h1><p id="launcher-total" class="hero__total">' +
+      (baked == null ? '…' : formatSteps(baked)) + '</p>';
+    page.insertBefore(section, page.firstChild);
+    return document.getElementById('launcher-total');
+  }
 
-  // ASCII-only copy — WA pages often mis-decode curly apostrophes.
-  markup = markup
-    .replace(/\u2019/g, "'")
-    .replace(/\u2018/g, "'")
-    .replace(/\u201C/g, '"')
-    .replace(/\u201D/g, '"');
+  fetch(api + '?action=public_total', { method: 'GET', credentials: 'omit', redirect: 'follow' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (!data || !data.ok || typeof data.totalSteps !== 'number') return;
+      var el = ensureTotalEl();
+      if (el) el.textContent = formatSteps(data.totalSteps);
+    })
+    .catch(function () { /* WA CSP or offline — keep baked total or CTA-only */ });
+})();
+`.trim();
 
-  return { markup, rootId };
-}
-
-const config = {
-  MODE: 'prod',
-  EMBEDDED: true,
-  PART: 'all',
-  APPS_SCRIPT_URL: appsScriptUrl,
-  WA_SITE_URL: waSiteUrl,
-  JOIN_URL: joinUrl,
-  APP_URL: appUrl,
-  AUTH_START_PATH: '?action=auth_start',
-};
-
-const { markup, rootId } = prepareMarkup(markupMatch[1]);
-
-const snippet = `<!-- AIWCD Steps widget — generated by npm run build:widget -->
+const snippet = `<!-- AIWCD Steps launcher — generated by npm run build:widget -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Raleway:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 ${css}
+.aiwcd-step-counter.launcher .launcher__cta { text-align: left; }
+.aiwcd-step-counter.launcher .btn--primary { display: inline-block; }
 </style>
 ${markup}
 <script>
-(function (boot) {
-  window.__AIWCD_BOOT__ = boot;
-${js}
-})(${JSON.stringify({ rootId, part: 'all', config }, null, 2)});
+${launcherJs}
 </script>
 `;
 
@@ -149,40 +140,13 @@ console.log(`Wrote ${outFile}`);
 console.log(
   `  Characters: ${chars.toLocaleString()} / ${MAX_CHARS.toLocaleString()} (${((chars / MAX_CHARS) * 100).toFixed(2)}% of WA limit)`,
 );
-
 if (chars > MAX_CHARS) {
   console.error('ERROR: widget exceeds Wild Apricot Custom HTML character limit');
   process.exit(1);
 }
-if (!/id="section-total"/i.test(markup) || !/id="section-track"/i.test(markup) || !/id="section-leaderboard"/i.test(markup)) {
-  console.error('ERROR: combined widget missing one or more sections');
-  process.exit(1);
+if (!appUrl) {
+  console.log('NOTE: Set APP_URL to your GitHub Pages tracker URL.');
 }
-if (/\shidden/.test(markup.match(/<section id="section-total"[^>]*>/i)?.[0] || '')) {
-  console.error('ERROR: section-total still has hidden attribute');
-  process.exit(1);
-}
-
-// Remove legacy split builds so old pastes aren't confused with the new artifact.
-for (const legacy of [
-  'aiwcd-steps-total-widget.html',
-  'aiwcd-steps-leaderboard-widget.html',
-  'aiwcd-steps-track-widget.html',
-  'aiwcd-step-counter-widget.html',
-]) {
-  try {
-    await fs.unlink(path.join(outdir, legacy));
-  } catch {
-    /* ignore */
-  }
-}
-
 if (appsScriptUrl.includes('REPLACE_WITH')) {
   console.log('NOTE: Set APPS_SCRIPT_URL when building for production paste.');
-}
-if (!appUrl) {
-  console.log(
-    'NOTE: Set APP_URL to your GitHub Pages tracker (e.g. https://user.github.io/step-counter/).',
-  );
-  console.log('      The WA embed only links there — it cannot call Apps Script (site CSP).');
 }

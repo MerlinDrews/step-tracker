@@ -128,6 +128,8 @@ const els = {
   calNext: $('cal-next'),
   calLabel: $('cal-label'),
   calGrid: $('cal-grid'),
+  appLoading: $('app-loading'),
+  appLoadingText: $('app-loading-text'),
 };
 
 function clubLoginUrl() {
@@ -212,6 +214,13 @@ function setMessage(el, text) {
   if (!el) return;
   el.textContent = text || '';
   el.hidden = !text;
+}
+
+function setLoading(isLoading, message = 'Loading…') {
+  if (!els.appLoading) return;
+  if (els.appLoadingText) els.appLoadingText.textContent = message;
+  els.appLoading.hidden = !isLoading;
+  if (els.root) els.root.classList.toggle('is-loading', Boolean(isLoading));
 }
 
 function escapeHtml(s) {
@@ -441,12 +450,15 @@ function setupAuthUi() {
   const embedded = Boolean(config.EMBEDDED);
 
   if (els.modeBadge) {
+    // Never show mock chrome in production / on GitHub Pages.
     if (api.mode === 'local' && !embedded) {
       els.modeBadge.hidden = false;
       els.modeBadge.textContent = `Local mock · ${part}`;
       els.modeBadge.dataset.mode = 'local';
     } else {
       els.modeBadge.hidden = true;
+      els.modeBadge.textContent = '';
+      delete els.modeBadge.dataset.mode;
     }
   }
 
@@ -456,14 +468,16 @@ function setupAuthUi() {
     if (api.mode === 'prod') {
       els.boardLoginLink.addEventListener('click', (event) => {
         event.preventDefault();
+        setLoading(true, 'Connecting to club login…');
         Promise.resolve(api.startClubLogin()).catch((err) => {
+          setLoading(false);
           setMessage(els.formErrorBoard, err?.message || String(err));
         });
       });
     }
   }
 
-  if (part === 'track' || part === 'all') {
+  if (api.mode === 'local' && (part === 'track' || part === 'all')) {
     fillMockUsers(els.mockUsers, async () => {
       const me = await api.getMe(selectedDate);
       if (!me.ok) {
@@ -480,7 +494,7 @@ function setupAuthUi() {
     });
   }
 
-  if (part === 'leaderboard' || part === 'all') {
+  if (api.mode === 'local' && (part === 'leaderboard' || part === 'all')) {
     fillMockUsers(els.mockUsersBoard, async () => {
       const board = await api.getLeaderboard();
       if (!board.ok) {
@@ -493,7 +507,7 @@ function setupAuthUi() {
   }
 
   if (els.signOut) {
-    els.signOut.hidden = embedded;
+    els.signOut.hidden = embedded || api.mode === 'prod';
     els.signOut.addEventListener('click', async () => {
       await api.logout();
       history = {};
@@ -611,9 +625,12 @@ async function initTotal() {
 }
 
 async function initLeaderboard() {
-  showBoardGate({ needsConnect: true });
+  showBoardGate({ needsConnect: !api.hasSession() });
   const board = await api.getLeaderboard();
-  if (maybeAutoConnect(board)) return;
+  if (maybeAutoConnect(board)) {
+    setLoading(true, 'Connecting to club login…');
+    return;
+  }
 
   if (board.ok) {
     showBoardContent(board.totals);
@@ -656,7 +673,7 @@ async function initTrack() {
 async function init() {
   showPartSections();
 
-  // Wild Apricot CSP blocks Apps Script — embed is a launcher only.
+  // Legacy EMBEDDED full-app boot (current WA gadget is a separate launcher build).
   if (isWaBridge()) {
     setupWaBridgeUi();
     return;
@@ -666,30 +683,38 @@ async function init() {
   setupCalendar();
   setupForm();
 
-  if (api.completeOAuthFromRedirect) {
-    const oauth = await api.completeOAuthFromRedirect();
-    if (oauth && oauth.ok === false) {
-      setMessage(els.formErrorBoard, oauth.error);
+  setLoading(true, 'Loading step tracker…');
+  try {
+    if (api.completeOAuthFromRedirect) {
+      setLoading(true, 'Finishing club login…');
+      const oauth = await api.completeOAuthFromRedirect();
+      if (oauth && oauth.ok === false) {
+        setMessage(els.formErrorBoard, oauth.error);
+      }
     }
-  }
 
-  if (part === 'all') {
-    // Total first (public). Then leaderboard (may SSO-redirect). Track last.
-    await initTotal();
-    await initLeaderboard();
-    if (authRedirectStarted) return;
+    if (part === 'all') {
+      setLoading(true, 'Loading totals…');
+      await initTotal();
+      setLoading(true, 'Loading leaderboard…');
+      await initLeaderboard();
+      if (authRedirectStarted) return;
+      setLoading(true, 'Loading your steps…');
+      await initTrack();
+      return;
+    }
+    if (part === 'total') {
+      await initTotal();
+      return;
+    }
+    if (part === 'leaderboard') {
+      await initLeaderboard();
+      return;
+    }
     await initTrack();
-    return;
+  } finally {
+    if (!authRedirectStarted) setLoading(false);
   }
-  if (part === 'total') {
-    await initTotal();
-    return;
-  }
-  if (part === 'leaderboard') {
-    await initLeaderboard();
-    return;
-  }
-  await initTrack();
 }
 
 init();

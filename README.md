@@ -36,13 +36,13 @@ Wild Apricot authorized app → **Trusted redirect domain** = the Pages host (e.
 ```bash
 APPS_SCRIPT_URL='https://script.google.com/macros/s/XXX/exec' \
 WA_SITE_URL='https://www.aiwcduesseldorf.org' \
-APP_URL='https://you.github.io/step-counter/' \
-JOIN_URL='https://www.aiwcduesseldorf.org/…' \
+APP_URL='https://you.github.io/step-tracker/' \
 npm run build:widget
 ```
 
-Paste [`dist/aiwcd-steps-widget.html`](dist/aiwcd-steps-widget.html) into **one** Custom HTML gadget.  
-Buttons open `APP_URL` (the hosted tracker). They do not call Apps Script from WA.
+Paste [`dist/aiwcd-steps-widget.html`](dist/aiwcd-steps-widget.html) into **one** Custom HTML gadget.
+
+The gadget is a **launcher only** (not the full app): it may show the public club total (baked at build time / live if the browser allows), plus **Go to the step tracker** → `APP_URL`.
 
 ## Quick start (local mock — no external services)
 

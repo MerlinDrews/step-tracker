@@ -34,10 +34,10 @@ body {
   box-sizing: border-box;
 }
 
-/* Combined embed: keep all three surfaces visible even if a stale script sets [hidden]. */
+/* Combined embed: keep launcher / total surfaces visible if a host sets [hidden]. */
 .aiwcd-step-counter.embedded > .page > #section-total,
-.aiwcd-step-counter.embedded > .page > #section-track,
-.aiwcd-step-counter.embedded > .page > #section-leaderboard {
+.aiwcd-step-counter.embedded > .page > .hero,
+.aiwcd-step-counter.embedded > .page > .launcher__cta {
   display: block !important;
 }
 
@@ -48,6 +48,44 @@ body {
 
 .aiwcd-step-counter a:hover {
   color: var(--teal);
+}
+
+.aiwcd-step-counter .app-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--steel);
+  border-radius: 2px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.aiwcd-step-counter .app-loading[hidden] {
+  display: none !important;
+}
+
+.aiwcd-step-counter .app-loading__spinner {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid var(--mist);
+  border-top-color: var(--steel);
+  border-radius: 50%;
+  animation: aiwcd-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.aiwcd-step-counter .app-loading__text {
+  margin: 0;
+}
+
+@keyframes aiwcd-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .aiwcd-step-counter .badge {
