@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AIWCD Step Counter</title>
+    <title>AIWCD Walkathon Step Challenge</title>
+    <meta name="description" content="Track club steps for the AIWCD Walkathon — American International Women's Club of Düsseldorf." />
+    <meta name="theme-color" content="#003b5f" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,6 +18,26 @@
   <body>
     <!-- WIDGET_MARKUP_START -->
     <div id="aiwcd-step-counter" class="aiwcd-step-counter">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <a
+            class="site-header__brand"
+            href="https://www.aiwcduesseldorf.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              class="site-header__logo"
+              src="https://www.aiwcduesseldorf.org/resources/Pictures/AIWCD_Logo/AIWCD_logo_horizontal_flame-right_color_white-text.png"
+              alt="American International Women's Club of Düsseldorf"
+              width="220"
+              height="44"
+            />
+          </a>
+          <p class="site-header__title">Walkathon Step Challenge</p>
+        </div>
+      </header>
+
       <div class="page">
         <span id="mode-badge" class="badge badge--inline" hidden></span>
         <div id="app-loading" class="app-loading" role="status" aria-live="polite">
@@ -111,6 +133,14 @@
           </div>
         </section>
       </div>
+
+      <footer class="site-footer">
+        <p class="site-footer__text">
+          <a href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">AIWCD</a>
+          · American International Women's Club of Düsseldorf
+        </p>
+        <p class="site-footer__hint">Members: sign in with your club account to log steps and view the leaderboard.</p>
+      </footer>
     </div>
     <!-- WIDGET_MARKUP_END -->
 

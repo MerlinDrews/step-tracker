@@ -53,8 +53,19 @@ const totalLabel =
   bakedTotal === null ? '' : Number(bakedTotal).toLocaleString('en-US');
 const showTotalBlock = bakedTotal !== null;
 
+const clubSite = waSiteUrl.replace(/\/$/, '');
+const logoUrl = `${clubSite}/resources/Pictures/AIWCD_Logo/AIWCD_logo_horizontal_flame-right_color_white-text.png`;
+
 const markup = `
 <div id="aiwcd-step-counter" class="aiwcd-step-counter embedded launcher" data-aiwcd-part="launcher">
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="site-header__brand" href="${clubSite}/" target="_blank" rel="noopener noreferrer">
+        <img class="site-header__logo" src="${logoUrl}" alt="AIWCD" width="220" height="44" />
+      </a>
+      <p class="site-header__title">Walkathon Step Challenge</p>
+    </div>
+  </header>
   <div class="page">
     ${
       showTotalBlock
@@ -65,8 +76,8 @@ const markup = `
         : ''
     }
     <section class="panel launcher__cta" aria-labelledby="launcher-heading">
-      <h2 id="launcher-heading" class="panel__title">Club step tracker</h2>
-      <p class="lede">See the leaderboard, connect your club login, and log Walkathon steps.</p>
+      <h2 id="launcher-heading" class="panel__title">Step tracker</h2>
+      <p class="lede">See the leaderboard, log your daily steps, and track our club total together.</p>
       <p>
         <a id="launcher-open" class="btn btn--primary" href="${trackerHref}">Go to the step tracker</a>
       </p>
@@ -77,6 +88,9 @@ const markup = `
       }
     </section>
   </div>
+  <footer class="site-footer">
+    <p class="site-footer__text"><a href="${clubSite}/" target="_blank" rel="noopener noreferrer">AIWCD</a> · American International Women's Club of Düsseldorf</p>
+  </footer>
 </div>
 `.trim();
 
