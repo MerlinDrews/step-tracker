@@ -5,8 +5,9 @@ const OAUTH_REDIRECT_KEY = 'step-counter-oauth-redirect';
 
 /**
  * Wild Apricot / Apps Script production API client.
- * Uses JSONP for GETs and text/plain POSTs so Apps Script works from GitHub Pages
- * (Apps Script does not support CORS preflight; WA CSP blocks it entirely).
+ * Prefer fetch (Apps Script sends Access-Control-Allow-Origin: *).
+ * JSONP is a fallback — some browsers fire script.onerror on the
+ * script.google.com → googleusercontent.com redirect.
  * @param {Record<string, unknown>} config
  */
 export function createProdApi(config) {
@@ -26,6 +27,25 @@ export function createProdApi(config) {
     return window.location.href.split('?')[0].split('#')[0];
   }
 
+  function buildUrl(action, query = {}) {
+    const url = new URL(base);
+    url.searchParams.set('action', action);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null && value !== '') {
+        url.searchParams.set(key, String(value));
+      }
+    }
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if (token) url.searchParams.set('sessionToken', token);
+    return url;
+  }
+
+  function storeSessionFrom(data) {
+    if (data && data.sessionToken) {
+      sessionStorage.setItem(TOKEN_KEY, data.sessionToken);
+    }
+  }
+
   function jsonp(action, query = {}) {
     return new Promise((resolve) => {
       if (!base) {
@@ -33,16 +53,8 @@ export function createProdApi(config) {
         return;
       }
       const cb = `aiwcdCb_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
-      const url = new URL(base);
-      url.searchParams.set('action', action);
+      const url = buildUrl(action, query);
       url.searchParams.set('callback', cb);
-      for (const [key, value] of Object.entries(query)) {
-        if (value !== undefined && value !== null && value !== '') {
-          url.searchParams.set(key, String(value));
-        }
-      }
-      const token = sessionStorage.getItem(TOKEN_KEY);
-      if (token) url.searchParams.set('sessionToken', token);
 
       const script = document.createElement('script');
       let settled = false;
@@ -55,43 +67,62 @@ export function createProdApi(config) {
       };
 
       window[cb] = (data) => {
-        if (data && data.sessionToken) {
-          sessionStorage.setItem(TOKEN_KEY, data.sessionToken);
-        }
+        storeSessionFrom(data);
         finish(data && typeof data === 'object' ? data : { ok: false, error: 'Invalid JSONP response' });
       };
       script.onerror = () =>
         finish({
           ok: false,
-          error:
-            'Could not reach the step API (blocked or offline). If this is the club website embed, open the hosted tracker instead.',
+          error: 'Could not reach the step API (script load failed).',
         });
+      script.async = true;
       script.src = url.toString();
       document.head.appendChild(script);
       setTimeout(() => finish({ ok: false, error: 'Step API timed out' }), 20000);
     });
   }
 
+  async function fetchGet(action, query = {}) {
+    if (!base) {
+      return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
+    }
+    const res = await fetch(buildUrl(action, query).toString(), {
+      method: 'GET',
+      redirect: 'follow',
+      credentials: 'omit',
+    });
+    const data = await res.json().catch(() => ({}));
+    storeSessionFrom(data);
+    if (data.ok === false) return data;
+    if (!res.ok) {
+      return { ok: false, error: data.error || `Request failed (${res.status})` };
+    }
+    return data.ok === undefined ? { ok: true, ...data } : data;
+  }
+
+  async function getAction(action, query = {}) {
+    try {
+      return await fetchGet(action, query);
+    } catch {
+      return jsonp(action, query);
+    }
+  }
+
   async function postAction(action, body = {}) {
     if (!base) {
       return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
     }
-    const url = new URL(base);
-    url.searchParams.set('action', action);
     const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) url.searchParams.set('sessionToken', token);
-
-    // text/plain avoids CORS preflight (Apps Script cannot answer OPTIONS).
-    const res = await fetch(url.toString(), {
+    // text/plain avoids CORS preflight when possible.
+    const res = await fetch(buildUrl(action).toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ ...body, sessionToken: token }),
       redirect: 'follow',
+      credentials: 'omit',
     });
     const data = await res.json().catch(() => ({}));
-    if (data.sessionToken) {
-      sessionStorage.setItem(TOKEN_KEY, data.sessionToken);
-    }
+    storeSessionFrom(data);
     if (data.ok === false) return data;
     if (!res.ok) {
       return { ok: false, error: data.error || `Request failed (${res.status})` };
@@ -116,13 +147,20 @@ export function createProdApi(config) {
 
     async startClubLogin() {
       const siteFromConfig = String(config.WA_SITE_URL || '').replace(/\/$/, '');
-      const pub = await jsonp('public_config');
-      if (!pub.ok) {
-        throw new Error(pub.error || 'Could not load club login settings');
+      let clientId = String(config.WA_CLIENT_ID || '');
+      let accountId = String(config.WA_ACCOUNT_ID || '');
+      let site = siteFromConfig;
+
+      if (!clientId || !accountId || !site) {
+        const pub = await getAction('public_config');
+        if (!pub.ok) {
+          throw new Error(pub.error || 'Could not load club login settings');
+        }
+        clientId = clientId || String(pub.waClientId || '');
+        accountId = accountId || String(pub.waAccountId || '');
+        site = site || String(pub.waSiteUrl || '').replace(/\/$/, '');
       }
-      const clientId = String(pub.waClientId || config.WA_CLIENT_ID || '');
-      const accountId = String(pub.waAccountId || config.WA_ACCOUNT_ID || '');
-      const site = String(pub.waSiteUrl || siteFromConfig || '').replace(/\/$/, '');
+
       if (!clientId || !accountId || !site) {
         throw new Error('Club login is not configured (missing WA client/account/site)');
       }
@@ -178,7 +216,7 @@ export function createProdApi(config) {
     },
 
     async getMe(selectedDate) {
-      return jsonp('me', { date: selectedDate });
+      return getAction('me', { date: selectedDate });
     },
 
     async logSteps(steps, date) {
@@ -186,11 +224,11 @@ export function createProdApi(config) {
     },
 
     async getPublicTotal() {
-      return jsonp('public_total');
+      return getAction('public_total');
     },
 
     async getLeaderboard() {
-      return jsonp('leaderboard');
+      return getAction('leaderboard');
     },
   };
 }
