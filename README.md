@@ -93,7 +93,8 @@ npm test
 
 3. **Apps Script**
    - Paste `apps-script/Code.gs` and `apps-script/Domain.gs` (redeploy after changes)
-   - Script properties: `WA_CLIENT_ID`, `WA_CLIENT_SECRET`, `WA_ACCOUNT_ID`, `WA_SITE_URL`, `SESSION_SECRET`, `SHEET_ID`, `FRONTEND_ORIGIN` (= Pages origin), optional `ALLOWED_GROUP_*`
+   - Script properties: `WA_CLIENT_ID`, `WA_CLIENT_SECRET`, `WA_ACCOUNT_ID`, `WA_SITE_URL`, `SESSION_SECRET`, `SHEET_ID`, `FRONTEND_ORIGIN` (= Pages origin), optional `ALLOWED_GROUP_*`, optional `WA_API_KEY`  
+   - **`WA_API_KEY`:** create under WA Settings → Apps → API keys if you use Walkathon **group** allow-lists (`ALLOWED_GROUP_*`). The SSO app’s client id/secret often cannot use `client_credentials`. Without an API key, login still works for the leaderboard (Active members); group enrichment is skipped.
    - Deploy → Web app → Execute as **Me**, Who has access **Anyone**
 
 4. **GitHub Pages**

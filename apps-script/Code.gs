@@ -6,6 +6,7 @@
  *   WA_CLIENT_SECRET
  *   WA_ACCOUNT_ID
  *   WA_SITE_URL          e.g. https://myclub.wildapricot.org
+ *   WA_API_KEY           optional API key (Settings → Apps → API key) for group lookups
  *   SESSION_SECRET      random string for signing session tokens
  *   SHEET_ID            Google Sheet ID containing a "steps" tab
  *   FRONTEND_ORIGIN     e.g. https://you.github.io/step-counter (where the interactive app is hosted)
@@ -233,15 +234,19 @@ function fetchContactMe(accessToken) {
   };
 }
 
-/** Admin API token (client_credentials) — needed because /contacts/me often omits Groups. */
+/** Admin API token — prefer WA_API_KEY (APIKEY:…); fall back to client_id:secret. */
 function getAdminAccessToken_() {
   var cache = CacheService.getScriptCache();
   var cached = cache.get('wa_admin_token');
   if (cached) return cached;
 
+  var apiKey = prop('WA_API_KEY');
   var clientId = prop('WA_CLIENT_ID');
   var clientSecret = prop('WA_CLIENT_SECRET');
-  var basic = Utilities.base64Encode(clientId + ':' + clientSecret);
+  // API keys use "APIKEY:<key>"; SSO server apps use "clientId:clientSecret".
+  var basic = apiKey
+    ? Utilities.base64Encode('APIKEY:' + apiKey)
+    : Utilities.base64Encode(clientId + ':' + clientSecret);
   var resp = UrlFetchApp.fetch('https://oauth.wildapricot.org/auth/token', {
     method: 'post',
     contentType: 'application/x-www-form-urlencoded',
@@ -249,7 +254,6 @@ function getAdminAccessToken_() {
     payload: {
       grant_type: 'client_credentials',
       scope: 'auto',
-      obtain_refresh_token: 'true',
     },
     muteHttpExceptions: true,
   });
@@ -277,15 +281,27 @@ function fetchContactAdmin_(contactId) {
   return JSON.parse(resp.getContentText());
 }
 
+/**
+ * Fill groups from Admin API when /contacts/me omits them.
+ * Soft-fails so SSO login still works without WA_API_KEY (leaderboard only needs Active).
+ */
 function enrichMemberGroups_(member) {
   var groups = member.groups || [];
-  if (groups.length === 0) {
+  if (groups.length > 0) {
+    member.groups = groups;
+    return member;
+  }
+  try {
     var raw = fetchContactAdmin_(member.contactId);
     groups = Domain.parseGroupsFromFieldValues(raw.FieldValues);
     if (raw.Status) member.membershipStatus = raw.Status;
     if (raw.Email) member.email = raw.Email;
     var name = [raw.FirstName, raw.LastName].filter(Boolean).join(' ');
     if (name) member.name = name;
+  } catch (err) {
+    // Common when the SSO app cannot use client_credentials — set WA_API_KEY for group gates.
+    Logger.log('enrichMemberGroups_ skipped: ' + err);
+    groups = [];
   }
   member.groups = groups;
   return member;
