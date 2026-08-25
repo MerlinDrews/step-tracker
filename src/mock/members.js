@@ -1,28 +1,42 @@
+export const MOCK_ALLOWED_GROUP_IDS = ['9001'];
+export const MOCK_ALLOWED_GROUP_NAMES = ['Step Challenge'];
+
 export const MOCK_MEMBERS = {
   alex: {
     contactId: '1001',
     email: 'alex@example.com',
     name: 'Alex Rivera',
     membershipStatus: 'Active',
+    groups: [{ id: '9001', label: 'Step Challenge' }],
   },
   jordan: {
     contactId: '1002',
     email: 'jordan@example.com',
     name: 'Jordan Lee',
     membershipStatus: 'Active',
+    groups: [{ id: '9001', label: 'Step Challenge' }],
   },
   inactive: {
     contactId: '1999',
     email: 'inactive@example.com',
     name: 'Inactive Member',
     membershipStatus: 'Lapsed',
+    groups: [{ id: '9001', label: 'Step Challenge' }],
+  },
+  outsider: {
+    contactId: '3003',
+    email: 'outsider@example.com',
+    name: 'Outside Member',
+    membershipStatus: 'Active',
+    groups: [{ id: '9002', label: 'Book Club' }],
   },
 };
 
 export function listMockUsers() {
   return [
-    { id: 'alex', label: 'Alex Rivera (active)' },
-    { id: 'jordan', label: 'Jordan Lee (active)' },
+    { id: 'alex', label: 'Alex Rivera (in Step Challenge)' },
+    { id: 'jordan', label: 'Jordan Lee (in Step Challenge)' },
+    { id: 'outsider', label: 'Outside Member (wrong group)' },
     { id: 'inactive', label: 'Inactive Member (rejected)' },
   ];
 }

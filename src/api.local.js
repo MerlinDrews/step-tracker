@@ -38,10 +38,15 @@ export function createLocalHttpApi() {
     listMockUsers() {
       // Synchronous list for UI; mirrors server mock users
       return [
-        { id: 'alex', label: 'Alex Rivera (active)' },
-        { id: 'jordan', label: 'Jordan Lee (active)' },
+        { id: 'alex', label: 'Alex Rivera (in Step Challenge)' },
+        { id: 'jordan', label: 'Jordan Lee (in Step Challenge)' },
+        { id: 'outsider', label: 'Outside Member (wrong group)' },
         { id: 'inactive', label: 'Inactive Member (rejected)' },
       ];
+    },
+
+    hasSession() {
+      return Boolean(sessionStorage.getItem(TOKEN_KEY));
     },
 
     async loginAs(mockUserId) {
@@ -67,8 +72,12 @@ export function createLocalHttpApi() {
       return request('/log', { method: 'POST', body: { steps, date } });
     },
 
-    async getTotals() {
-      return request('/totals');
+    async getPublicTotal() {
+      return request('/public-total');
+    },
+
+    async getLeaderboard() {
+      return request('/leaderboard');
     },
   };
 }

@@ -1,6 +1,7 @@
 import {
   aggregateTotals,
   assertActiveMember,
+  assertAuthorizedMember,
   assertSession,
   findStepsForDate,
   historyForContact,
@@ -9,7 +10,12 @@ import {
   validateDateKey,
   validateSteps,
 } from '../domain/index.js';
-import { listMockUsers, MOCK_MEMBERS } from './members.js';
+import {
+  listMockUsers,
+  MOCK_ALLOWED_GROUP_IDS,
+  MOCK_ALLOWED_GROUP_NAMES,
+  MOCK_MEMBERS,
+} from './members.js';
 
 /**
  * Shared mock backend handlers. Storage adapters supply rows + session.
@@ -27,6 +33,7 @@ export function createMockHandlers(storage) {
 
     listMockUsers,
 
+    /** Any Active member may start a session (leaderboard). Track endpoints still check groups. */
     async loginAs(mockUserId) {
       const member = MOCK_MEMBERS[mockUserId];
       if (!member) {
@@ -50,7 +57,11 @@ export function createMockHandlers(storage) {
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);
       if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
-      const gate = assertActiveMember(session.member);
+      const gate = assertAuthorizedMember(
+        session.member,
+        MOCK_ALLOWED_GROUP_IDS,
+        MOCK_ALLOWED_GROUP_NAMES,
+      );
       if (!gate.ok) return { ok: false, error: gate.error };
 
       const today = todayKey();
@@ -78,7 +89,11 @@ export function createMockHandlers(storage) {
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);
       if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
-      const gate = assertActiveMember(session.member);
+      const gate = assertAuthorizedMember(
+        session.member,
+        MOCK_ALLOWED_GROUP_IDS,
+        MOCK_ALLOWED_GROUP_NAMES,
+      );
       if (!gate.ok) return { ok: false, error: gate.error };
 
       const validated = validateSteps(stepsInput);
@@ -109,9 +124,27 @@ export function createMockHandlers(storage) {
       };
     },
 
-    async getTotals() {
+    /** Public: grand total only (no contributor names). */
+    async getPublicTotal() {
       const rows = await storage.loadRows();
-      return { ok: true, totals: aggregateTotals(rows) };
+      const totals = aggregateTotals(rows);
+      return { ok: true, totalSteps: totals.totalSteps };
+    },
+
+    /** Members-only: full leaderboard. */
+    async getLeaderboard() {
+      const session = await storage.getSession();
+      const sessionCheck = assertSession(session.token);
+      if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
+      const gate = assertActiveMember(session.member);
+      if (!gate.ok) return { ok: false, error: gate.error };
+
+      const rows = await storage.loadRows();
+      return {
+        ok: true,
+        member: session.member,
+        totals: aggregateTotals(rows),
+      };
     },
   };
 }

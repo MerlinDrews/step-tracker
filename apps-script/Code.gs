@@ -8,7 +8,14 @@
  *   WA_SITE_URL          e.g. https://myclub.wildapricot.org
  *   SESSION_SECRET      random string for signing session tokens
  *   SHEET_ID            Google Sheet ID containing a "steps" tab
- *   FRONTEND_ORIGIN     e.g. https://user.github.io (for CORS / return_to allowlist)
+ *   FRONTEND_ORIGIN     e.g. https://you.github.io/step-counter (where the interactive app is hosted)
+ *
+ * Wild Apricot authorized app:
+ *   Trusted redirect domain = FRONTEND_ORIGIN host (GitHub Pages / app host) — required for SSO.
+ *   The WA Custom HTML gadget cannot call Apps Script (WA CSP blocks script.googleusercontent.com);
+ *   it only links out to FRONTEND_ORIGIN.
+ *   ALLOWED_GROUP_IDS   optional; required for me/log (track). Leaderboard ignores these.
+ *   ALLOWED_GROUP_NAMES optional; if both empty, any Active member may log steps.
  *
  * Deploy as Web App: Execute as Me, Who has access: Anyone.
  *
@@ -16,6 +23,8 @@
  */
 
 var STEPS_HEADERS = ['date', 'contactId', 'email', 'name', 'steps', 'updated_at'];
+/** Set per-request for JSONP (?callback=) support. */
+var __jsonpCallback = null;
 
 function doGet(e) {
   return handleRequest(e, 'GET');
@@ -26,6 +35,7 @@ function doPost(e) {
 }
 
 function handleRequest(e, method) {
+  __jsonpCallback = (e && e.parameter && e.parameter.callback) || null;
   try {
     var action = (e.parameter && e.parameter.action) || '';
     var body = {};
@@ -39,8 +49,27 @@ function handleRequest(e, method) {
     if (action === 'auth_callback') {
       return handleAuthCallback(e.parameter);
     }
+    if (action === 'auth_exchange' && method === 'POST') {
+      return handleAuthExchange(body);
+    }
+    if (action === 'public_config') {
+      return jsonOk({
+        waClientId: prop('WA_CLIENT_ID') || '',
+        waAccountId: prop('WA_ACCOUNT_ID') || '',
+        waSiteUrl: (prop('WA_SITE_URL') || '').replace(/\/$/, ''),
+      });
+    }
+    if (action === 'public_total') {
+      var totals = getTotalsFromSheet();
+      return jsonOk({ totalSteps: totals.totalSteps || 0 });
+    }
+    if (action === 'leaderboard') {
+      return handleLeaderboard(e);
+    }
+    // Legacy alias: never expose contributor names publicly
     if (action === 'totals') {
-      return jsonOk({ totals: getTotalsFromSheet() });
+      var legacy = getTotalsFromSheet();
+      return jsonOk({ totalSteps: legacy.totalSteps || 0 });
     }
     if (action === 'me') {
       return handleMe(e);
@@ -92,9 +121,11 @@ function handleAuthCallback(params) {
   }
 
   var token = exchangeCode(code, ScriptApp.getService().getUrl() + '?action=auth_callback' + (params.return_to ? '&return_to=' + encodeURIComponent(params.return_to) : ''));
-  var member = fetchContactMe(token.access_token);
-  if (!Domain.assertActiveMember(member).ok) {
-    return jsonErr('Membership is not active', 403);
+  var member = enrichMemberGroups_(fetchContactMe(token.access_token));
+  // Any Active member may establish a session (leaderboard). Group checks apply only to me/log.
+  var gate = Domain.assertActiveMember(member);
+  if (!gate.ok) {
+    return jsonErr(gate.error, 403);
   }
 
   var sessionToken = createSessionToken(member);
@@ -105,6 +136,55 @@ function handleAuthCallback(params) {
   return HtmlService.createHtmlOutput(
     '<script>window.location.href=' + JSON.stringify(redirectUrl) + ';</script>',
   );
+}
+
+/**
+ * Browser-safe SSO: frontend redirects to Wild Apricot, then POSTs the code here via fetch.
+ * Avoids top-level navigation to script.google.com (often shows a Google Drive error page).
+ */
+function handleAuthExchange(body) {
+  var code = body && body.code;
+  var redirectUri = body && body.redirect_uri;
+  if (!code || !redirectUri) {
+    return jsonErr('Missing code or redirect_uri', 400);
+  }
+  if (!isAllowedRedirectUri_(String(redirectUri))) {
+    return jsonErr('redirect_uri is not allowed', 400);
+  }
+
+  var token = exchangeCode(String(code), String(redirectUri));
+  var member = enrichMemberGroups_(fetchContactMe(token.access_token));
+  var gate = Domain.assertActiveMember(member);
+  if (!gate.ok) {
+    return jsonErr(gate.error, 403);
+  }
+
+  return jsonOk({
+    sessionToken: createSessionToken(member),
+    member: member,
+  });
+}
+
+function isAllowedRedirectUri_(uri) {
+  var allowedHosts = {};
+  function addOrigin(origin) {
+    if (!origin) return;
+    var host = String(origin)
+      .replace(/^https?:\/\//i, '')
+      .split('/')[0]
+      .toLowerCase();
+    if (!host) return;
+    allowedHosts[host] = true;
+    if (host.indexOf('www.') === 0) allowedHosts[host.slice(4)] = true;
+    else allowedHosts['www.' + host] = true;
+  }
+  addOrigin(prop('WA_SITE_URL'));
+  addOrigin(prop('FRONTEND_ORIGIN'));
+  var uriHost = String(uri)
+    .replace(/^https?:\/\//i, '')
+    .split('/')[0]
+    .toLowerCase();
+  return Boolean(uriHost && allowedHosts[uriHost]);
 }
 
 function exchangeCode(code, redirectUri) {
@@ -149,7 +229,78 @@ function fetchContactMe(accessToken) {
     email: raw.Email || '',
     name: [raw.FirstName, raw.LastName].filter(Boolean).join(' ') || raw.Email || 'Member',
     membershipStatus: raw.Status || 'Active',
+    groups: Domain.parseGroupsFromFieldValues(raw.FieldValues),
   };
+}
+
+/** Admin API token (client_credentials) — needed because /contacts/me often omits Groups. */
+function getAdminAccessToken_() {
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get('wa_admin_token');
+  if (cached) return cached;
+
+  var clientId = prop('WA_CLIENT_ID');
+  var clientSecret = prop('WA_CLIENT_SECRET');
+  var basic = Utilities.base64Encode(clientId + ':' + clientSecret);
+  var resp = UrlFetchApp.fetch('https://oauth.wildapricot.org/auth/token', {
+    method: 'post',
+    contentType: 'application/x-www-form-urlencoded',
+    headers: { Authorization: 'Basic ' + basic },
+    payload: {
+      grant_type: 'client_credentials',
+      scope: 'auto',
+      obtain_refresh_token: 'true',
+    },
+    muteHttpExceptions: true,
+  });
+  var data = JSON.parse(resp.getContentText());
+  if (resp.getResponseCode() >= 300) {
+    throw new Error('Admin token failed: ' + resp.getContentText());
+  }
+  var ttl = Math.max(60, Math.min(Number(data.expires_in || 1800) - 60, 21600));
+  cache.put('wa_admin_token', data.access_token, ttl);
+  return data.access_token;
+}
+
+function fetchContactAdmin_(contactId) {
+  var accountId = prop('WA_ACCOUNT_ID');
+  var resp = UrlFetchApp.fetch(
+    'https://api.wildapricot.org/v2/accounts/' + accountId + '/contacts/' + encodeURIComponent(contactId),
+    {
+      headers: { Authorization: 'Bearer ' + getAdminAccessToken_(), Accept: 'application/json' },
+      muteHttpExceptions: true,
+    },
+  );
+  if (resp.getResponseCode() >= 300) {
+    throw new Error('contacts/' + contactId + ' failed: ' + resp.getContentText());
+  }
+  return JSON.parse(resp.getContentText());
+}
+
+function enrichMemberGroups_(member) {
+  var groups = member.groups || [];
+  if (groups.length === 0) {
+    var raw = fetchContactAdmin_(member.contactId);
+    groups = Domain.parseGroupsFromFieldValues(raw.FieldValues);
+    if (raw.Status) member.membershipStatus = raw.Status;
+    if (raw.Email) member.email = raw.Email;
+    var name = [raw.FirstName, raw.LastName].filter(Boolean).join(' ');
+    if (name) member.name = name;
+  }
+  member.groups = groups;
+  return member;
+}
+
+function allowedGroupConfig_() {
+  return {
+    ids: Domain.parseAllowList(prop('ALLOWED_GROUP_IDS')),
+    names: Domain.parseAllowList(prop('ALLOWED_GROUP_NAMES')),
+  };
+}
+
+function authorizeMember_(member) {
+  var cfg = allowedGroupConfig_();
+  return Domain.assertAuthorizedMember(member, cfg.ids, cfg.names);
 }
 
 function createSessionToken(member) {
@@ -158,6 +309,7 @@ function createSessionToken(member) {
     email: member.email,
     name: member.name,
     membershipStatus: member.membershipStatus || 'Active',
+    groups: member.groups || [],
     exp: Date.now() + 7 * 24 * 60 * 60 * 1000,
   };
   var body = Utilities.base64EncodeWebSafe(JSON.stringify(payload));
@@ -185,16 +337,27 @@ function getSessionFromRequest(e) {
   return parseSessionToken(auth);
 }
 
-function handleMe(e) {
+function resolveMember_(e, body) {
   var member = getSessionFromRequest(e);
-  // Prefer Authorization header when available
-  if (!member && e && e.postData) {
-    /* no-op for GET */
-  }
   var headerToken = extractBearer_(e);
   if (!member && headerToken) member = parseSessionToken(headerToken);
+  if (!member && body && body.sessionToken) member = parseSessionToken(body.sessionToken);
+  return member;
+}
+
+/** Members-only ranked list (Active membership; not group-restricted). */
+function handleLeaderboard(e) {
+  var member = resolveMember_(e, null);
   if (!member) return jsonErr('Not signed in', 401);
   var gate = Domain.assertActiveMember(member);
+  if (!gate.ok) return jsonErr(gate.error, 403);
+  return jsonOk({ totals: getTotalsFromSheet(), member: member });
+}
+
+function handleMe(e) {
+  var member = resolveMember_(e, null);
+  if (!member) return jsonErr('Not signed in', 401);
+  var gate = authorizeMember_(member);
   if (!gate.ok) return jsonErr(gate.error, 403);
 
   var rows = readStepsRows();
@@ -218,7 +381,7 @@ function handleLog(e, body) {
   var member = parseSessionToken(extractBearer_(e)) || getSessionFromRequest(e);
   if (!member && body && body.sessionToken) member = parseSessionToken(body.sessionToken);
   if (!member) return jsonErr('Not signed in', 401);
-  var gate = Domain.assertActiveMember(member);
+  var gate = authorizeMember_(member);
   if (!gate.ok) return jsonErr(gate.error, 403);
 
   var validated = Domain.validateSteps(body.steps);
@@ -302,14 +465,20 @@ function getTotalsFromSheet() {
 }
 
 function jsonOk(obj) {
-  var out = Object.assign({ ok: true }, obj);
-  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(
-    ContentService.MimeType.JSON,
-  );
+  return packJson_(Object.assign({ ok: true }, obj));
 }
 
 function jsonErr(message, code) {
-  return ContentService.createTextOutput(
-    JSON.stringify({ ok: false, error: message, status: code || 400 }),
-  ).setMimeType(ContentService.MimeType.JSON);
+  return packJson_({ ok: false, error: message, status: code || 400 });
+}
+
+function packJson_(obj) {
+  var text = JSON.stringify(obj);
+  var cb = __jsonpCallback;
+  if (cb && /^[A-Za-z_][A-Za-z0-9_]*$/.test(String(cb))) {
+    return ContentService.createTextOutput(String(cb) + '(' + text + ');').setMimeType(
+      ContentService.MimeType.JAVASCRIPT,
+    );
+  }
+  return ContentService.createTextOutput(text).setMimeType(ContentService.MimeType.JSON);
 }

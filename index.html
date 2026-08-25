@@ -15,27 +15,31 @@
   </head>
   <body>
     <!-- WIDGET_MARKUP_START -->
-    <div id="aiwcd-step-counter">
+    <div id="aiwcd-step-counter" class="aiwcd-step-counter">
       <div class="page">
         <span id="mode-badge" class="badge badge--inline" data-mode="local" hidden>Local mock</span>
 
-        <section class="hero" aria-labelledby="total-heading">
-          <h1 id="total-heading" class="hero__label">Total steps (all time)</h1>
+        <section id="section-total" class="hero" aria-labelledby="total-heading">
+          <h1 id="total-heading" class="hero__label">Club total</h1>
           <p id="total-steps" class="hero__total">0</p>
         </section>
 
-        <section class="panel" aria-labelledby="log-heading">
-          <h2 id="log-heading" class="panel__title">Log steps</h2>
+        <section id="section-track" class="panel" aria-labelledby="track-heading">
+          <h2 id="track-heading" class="panel__title">Log steps</h2>
 
-          <div id="signed-out">
-            <p class="lede">Sign in with your AIWCD club account to save steps.</p>
+          <div id="track-cta">
+            <p id="track-cta-title" class="cta__title">Join the Walkathon!</p>
+            <p id="track-cta-lede" class="lede">
+              Log your daily steps with the club challenge. Participation is for Walkathon members.
+            </p>
+            <p id="track-cta-action" class="lede" hidden>
+              <a id="join-link" class="btn btn--primary" href="#">Join the Walkathon!</a>
+            </p>
             <div id="mock-users" class="stack"></div>
-            <button id="club-login" type="button" class="btn btn--primary" hidden>
-              Sign in with club account
-            </button>
+            <p id="form-error-track" class="msg msg--error" hidden></p>
           </div>
 
-          <div id="signed-in" hidden>
+          <div id="track-app" hidden>
             <div class="member-bar">
               <p>
                 Signed in as <strong id="member-name"></strong>
@@ -78,15 +82,29 @@
             <button id="save-btn" type="button" class="btn btn--primary btn--block">
               Save steps
             </button>
-          </div>
 
-          <p id="form-error" class="msg msg--error" hidden></p>
-          <p id="form-success" class="msg msg--ok" hidden></p>
+            <p id="form-error" class="msg msg--error" hidden></p>
+            <p id="form-success" class="msg msg--ok" hidden></p>
+          </div>
         </section>
 
-        <section class="panel" aria-labelledby="board-heading">
+        <section id="section-leaderboard" class="panel" aria-labelledby="board-heading">
           <h2 id="board-heading" class="panel__title">Leaderboard</h2>
-          <ol id="leaderboard" class="leaderboard"></ol>
+
+          <div id="board-gate">
+            <p id="board-gate-lede" class="lede">
+              You need to be an AIWCD club member to view the leaderboard.
+            </p>
+            <p id="board-gate-action" class="lede" hidden>
+              <a id="board-login-link" class="btn btn--primary" href="#">Connect club login</a>
+            </p>
+            <div id="mock-users-board" class="stack"></div>
+            <p id="form-error-board" class="msg msg--error" hidden></p>
+          </div>
+
+          <div id="board-content" hidden>
+            <ol id="leaderboard" class="leaderboard"></ol>
+          </div>
         </section>
       </div>
     </div>

@@ -5,3 +5,10 @@ config.js
 .vite/
 coverage/
 dist/
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+credentials.json
+example.html

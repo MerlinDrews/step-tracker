@@ -1,4 +1,4 @@
-/* Scoped under #aiwcd-step-counter for Wild Apricot Custom HTML embeds */
+/* Scoped under .aiwcd-step-counter for Wild Apricot Custom HTML embeds */
 /* Palette: https://www.aiwcduesseldorf.org/ */
 
 body {
@@ -6,7 +6,7 @@ body {
   background: #f4f7f8;
 }
 
-#aiwcd-step-counter {
+.aiwcd-step-counter {
   --navy: #003b5f;
   --teal: #005273;
   --steel: #6f99a5;
@@ -28,22 +28,29 @@ body {
   text-align: left;
 }
 
-#aiwcd-step-counter *,
-#aiwcd-step-counter *::before,
-#aiwcd-step-counter *::after {
+.aiwcd-step-counter *,
+.aiwcd-step-counter *::before,
+.aiwcd-step-counter *::after {
   box-sizing: border-box;
 }
 
-#aiwcd-step-counter a {
+/* Combined embed: keep all three surfaces visible even if a stale script sets [hidden]. */
+.aiwcd-step-counter.embedded > .page > #section-total,
+.aiwcd-step-counter.embedded > .page > #section-track,
+.aiwcd-step-counter.embedded > .page > #section-leaderboard {
+  display: block !important;
+}
+
+.aiwcd-step-counter a {
   color: var(--steel);
   text-decoration: none;
 }
 
-#aiwcd-step-counter a:hover {
+.aiwcd-step-counter a:hover {
   color: var(--teal);
 }
 
-#aiwcd-step-counter .badge {
+.aiwcd-step-counter .badge {
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -55,24 +62,24 @@ body {
   white-space: nowrap;
 }
 
-#aiwcd-step-counter .badge--inline {
+.aiwcd-step-counter .badge--inline {
   display: inline-block;
   margin: 0 0 0.75rem;
 }
 
-#aiwcd-step-counter .page {
+.aiwcd-step-counter .page {
   width: min(640px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 1.25rem 0 2rem;
 }
 
-#aiwcd-step-counter .hero {
+.aiwcd-step-counter .hero {
   text-align: center;
   padding: 0.25rem 0.25rem 1.25rem;
   margin-bottom: 0.25rem;
 }
 
-#aiwcd-step-counter .hero__label {
+.aiwcd-step-counter .hero__label {
   margin: 0;
   font-family: var(--display);
   font-size: 0.95rem;
@@ -82,7 +89,7 @@ body {
   text-transform: uppercase;
 }
 
-#aiwcd-step-counter .hero__total {
+.aiwcd-step-counter .hero__total {
   margin: 0.45rem 0 0;
   font-family: var(--display);
   font-size: clamp(2.8rem, 12vw, 4.2rem);
@@ -92,7 +99,7 @@ body {
   color: var(--navy);
 }
 
-#aiwcd-step-counter .panel {
+.aiwcd-step-counter .panel {
   background: var(--paper);
   border: 1px solid var(--line);
   border-left: 4px solid var(--steel);
@@ -101,7 +108,7 @@ body {
   margin-bottom: 1rem;
 }
 
-#aiwcd-step-counter .panel__title {
+.aiwcd-step-counter .panel__title {
   margin: 0 0 0.85rem;
   font-family: var(--display);
   font-size: 1.05rem;
@@ -111,17 +118,34 @@ body {
   text-transform: uppercase;
 }
 
-#aiwcd-step-counter .lede {
+.aiwcd-step-counter .lede {
   margin: 0 0 1rem;
   color: var(--muted);
 }
 
-#aiwcd-step-counter .stack {
+.aiwcd-step-counter .cta__title {
+  margin: 0 0 0.5rem;
+  font-family: var(--display);
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.2;
+}
+
+.aiwcd-step-counter .leaderboard__empty {
+  list-style: none;
+  margin: 0;
+  padding: 0.75rem 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+.aiwcd-step-counter .stack {
   display: grid;
   gap: 0.65rem;
 }
 
-#aiwcd-step-counter .member-bar {
+.aiwcd-step-counter .member-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -131,22 +155,22 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
-#aiwcd-step-counter .member-bar p {
+.aiwcd-step-counter .member-bar p {
   margin: 0;
   color: var(--muted);
 }
 
-#aiwcd-step-counter .member-bar strong {
+.aiwcd-step-counter .member-bar strong {
   color: var(--navy);
 }
 
-#aiwcd-step-counter .field {
+.aiwcd-step-counter .field {
   display: grid;
   gap: 0.4rem;
   margin-bottom: 0.9rem;
 }
 
-#aiwcd-step-counter .field__label {
+.aiwcd-step-counter .field__label {
   font-family: var(--display);
   font-size: 0.8rem;
   font-weight: 700;
@@ -155,7 +179,7 @@ body {
   color: var(--navy);
 }
 
-#aiwcd-step-counter .field__input {
+.aiwcd-step-counter .field__input {
   width: 100%;
   font: inherit;
   font-size: 1.5rem;
@@ -167,24 +191,24 @@ body {
   color: var(--ink);
 }
 
-#aiwcd-step-counter .field__input:focus {
+.aiwcd-step-counter .field__input:focus {
   outline: 2px solid rgba(111, 153, 165, 0.45);
   border-color: var(--steel);
 }
 
-#aiwcd-step-counter .field__input--date {
+.aiwcd-step-counter .field__input--date {
   font-size: 1.05rem;
   font-weight: 700;
 }
 
-#aiwcd-step-counter .calendar {
+.aiwcd-step-counter .calendar {
   margin-bottom: 1.15rem;
   padding: 0.85rem;
   border: 1px solid var(--line);
   background: #f8fbfc;
 }
 
-#aiwcd-step-counter .calendar__nav {
+.aiwcd-step-counter .calendar__nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -192,7 +216,7 @@ body {
   margin-bottom: 0.75rem;
 }
 
-#aiwcd-step-counter .calendar__label {
+.aiwcd-step-counter .calendar__label {
   margin: 0;
   font-family: var(--display);
   font-size: 0.95rem;
@@ -202,7 +226,7 @@ body {
   text-transform: uppercase;
 }
 
-#aiwcd-step-counter .calendar__nav-btn {
+.aiwcd-step-counter .calendar__nav-btn {
   appearance: none;
   width: 2.25rem;
   height: 2.25rem;
@@ -214,11 +238,11 @@ body {
   cursor: pointer;
 }
 
-#aiwcd-step-counter .calendar__nav-btn:hover {
+.aiwcd-step-counter .calendar__nav-btn:hover {
   background: var(--mist);
 }
 
-#aiwcd-step-counter .calendar__dow {
+.aiwcd-step-counter .calendar__dow {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0.25rem;
@@ -232,17 +256,17 @@ body {
   text-align: center;
 }
 
-#aiwcd-step-counter .calendar__grid {
+.aiwcd-step-counter .calendar__grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 0.25rem;
 }
 
-#aiwcd-step-counter .calendar__cell {
+.aiwcd-step-counter .calendar__cell {
   min-height: 2.6rem;
 }
 
-#aiwcd-step-counter .calendar__day {
+.aiwcd-step-counter .calendar__day {
   appearance: none;
   width: 100%;
   min-height: 2.6rem;
@@ -260,54 +284,55 @@ body {
   padding: 0.25rem;
 }
 
-#aiwcd-step-counter .calendar__day:hover:not(:disabled) {
+.aiwcd-step-counter .calendar__day:hover:not(:disabled) {
   border-color: var(--steel);
   background: #eef5f7;
 }
 
-#aiwcd-step-counter .calendar__day.is-today {
+.aiwcd-step-counter .calendar__day.is-today {
   box-shadow: inset 0 0 0 1px var(--steel);
 }
 
-#aiwcd-step-counter .calendar__day.is-selected {
+.aiwcd-step-counter .calendar__day.is-selected {
   background: var(--teal);
   color: #fff;
   border-color: var(--teal);
 }
 
-#aiwcd-step-counter .calendar__day.is-selected .calendar__dot {
+.aiwcd-step-counter .calendar__day.is-selected .calendar__dot {
   background: #fff;
 }
 
-#aiwcd-step-counter .calendar__day.has-entry:not(.is-selected) {
+.aiwcd-step-counter .calendar__day.has-entry:not(.is-selected) {
   border-color: var(--mist);
 }
 
-#aiwcd-step-counter .calendar__day.is-future,
-#aiwcd-step-counter .calendar__day:disabled {
+.aiwcd-step-counter .calendar__day.is-future,
+.aiwcd-step-counter .calendar__day:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-#aiwcd-step-counter .calendar__day-num {
+.aiwcd-step-counter .calendar__day-num {
   line-height: 1;
 }
 
-#aiwcd-step-counter .calendar__dot {
+.aiwcd-step-counter .calendar__dot {
   width: 0.35rem;
   height: 0.35rem;
   border-radius: 50%;
   background: var(--steel);
 }
 
-#aiwcd-step-counter .calendar__hint {
+.aiwcd-step-counter .calendar__hint {
   margin: 0.65rem 0 0;
   font-size: 0.82rem;
   color: var(--muted);
 }
 
-#aiwcd-step-counter .btn {
+.aiwcd-step-counter .btn {
   appearance: none;
+  display: inline-block;
   border: 0;
   border-radius: 2px;
   font-family: var(--display);
@@ -315,27 +340,42 @@ body {
   font-size: 0.92rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  text-decoration: none;
+  text-align: center;
   padding: 0.95rem 1.15rem;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-#aiwcd-step-counter .btn--primary {
+/* Beat Wild Apricot site link colors (otherwise primary CTA text matches the button fill). */
+.aiwcd-step-counter a.btn,
+.aiwcd-step-counter a.btn:link,
+.aiwcd-step-counter a.btn:visited {
+  text-decoration: none;
+}
+
+.aiwcd-step-counter .btn--primary,
+.aiwcd-step-counter a.btn--primary,
+.aiwcd-step-counter a.btn--primary:link,
+.aiwcd-step-counter a.btn--primary:visited {
   background: var(--steel);
-  color: #fff;
+  color: #fff !important;
 }
 
-#aiwcd-step-counter .btn--primary:hover {
+.aiwcd-step-counter .btn--primary:hover,
+.aiwcd-step-counter .btn--primary:focus,
+.aiwcd-step-counter a.btn--primary:hover,
+.aiwcd-step-counter a.btn--primary:focus {
   background: var(--mist);
-  color: var(--navy);
+  color: var(--navy) !important;
 }
 
-#aiwcd-step-counter .btn--primary:disabled {
+.aiwcd-step-counter .btn--primary:disabled {
   opacity: 0.6;
   cursor: wait;
 }
 
-#aiwcd-step-counter .btn--secondary {
+.aiwcd-step-counter .btn--secondary {
   background: #fff;
   color: var(--navy);
   border: 1px solid var(--mist);
@@ -346,16 +386,16 @@ body {
   font-weight: 700;
 }
 
-#aiwcd-step-counter .btn--secondary:hover {
+.aiwcd-step-counter .btn--secondary:hover {
   background: var(--mist);
   border-color: var(--steel);
 }
 
-#aiwcd-step-counter .btn--block {
+.aiwcd-step-counter .btn--block {
   width: 100%;
 }
 
-#aiwcd-step-counter .linkish {
+.aiwcd-step-counter .linkish {
   appearance: none;
   border: 0;
   background: transparent;
@@ -366,25 +406,25 @@ body {
   padding: 0;
 }
 
-#aiwcd-step-counter .linkish:hover {
+.aiwcd-step-counter .linkish:hover {
   color: var(--teal);
 }
 
-#aiwcd-step-counter .msg {
+.aiwcd-step-counter .msg {
   margin: 0.85rem 0 0;
   font-size: 0.92rem;
 }
 
-#aiwcd-step-counter .msg--error {
+.aiwcd-step-counter .msg--error {
   color: var(--danger);
 }
 
-#aiwcd-step-counter .msg--ok {
+.aiwcd-step-counter .msg--ok {
   color: var(--ok);
   font-weight: 700;
 }
 
-#aiwcd-step-counter .leaderboard {
+.aiwcd-step-counter .leaderboard {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -392,7 +432,7 @@ body {
   gap: 0.55rem;
 }
 
-#aiwcd-step-counter .leaderboard__row {
+.aiwcd-step-counter .leaderboard__row {
   display: grid;
   grid-template-columns: 2rem 1fr auto;
   gap: 0.75rem;
@@ -404,29 +444,29 @@ body {
   border-left: 3px solid var(--steel);
 }
 
-#aiwcd-step-counter .leaderboard__rank {
+.aiwcd-step-counter .leaderboard__rank {
   font-family: var(--display);
   font-weight: 700;
   color: var(--steel);
 }
 
-#aiwcd-step-counter .leaderboard__name {
+.aiwcd-step-counter .leaderboard__name {
   font-weight: 700;
   color: var(--navy);
 }
 
-#aiwcd-step-counter .leaderboard__steps {
+.aiwcd-step-counter .leaderboard__steps {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--ink);
 }
 
 @media (max-width: 520px) {
-  #aiwcd-step-counter .page {
+  .aiwcd-step-counter .page {
     width: calc(100% - 1.5rem);
   }
 
-  #aiwcd-step-counter .member-bar {
+  .aiwcd-step-counter .member-bar {
     flex-direction: column;
     align-items: flex-start;
   }

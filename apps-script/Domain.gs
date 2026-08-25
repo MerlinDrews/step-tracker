@@ -68,6 +68,77 @@ var Domain = (function () {
     return { ok: true };
   }
 
+  function parseAllowList(value) {
+    if (!value) return [];
+    return String(value)
+      .split(/[\n,]+/)
+      .map(function (s) {
+        return s.replace(/^\s+|\s+$/g, '');
+      })
+      .filter(Boolean);
+  }
+
+  function parseGroupsFromFieldValues(fieldValues) {
+    if (!fieldValues || !fieldValues.length) return [];
+    var entry = null;
+    for (var i = 0; i < fieldValues.length; i++) {
+      var f = fieldValues[i];
+      if (f && (f.SystemCode === 'Groups' || f.FieldName === 'Group participation')) {
+        entry = f;
+        break;
+      }
+    }
+    if (!entry || entry.Value == null) return [];
+    var raw = entry.Value;
+    if (!raw || typeof raw.length !== 'number') return [];
+    var out = [];
+    for (var j = 0; j < raw.length; j++) {
+      var g = raw[j] || {};
+      var id = String(g.Id != null ? g.Id : g.id != null ? g.id : '');
+      var label = String(
+        g.Label != null
+          ? g.Label
+          : g.label != null
+            ? g.label
+            : g.Name != null
+              ? g.Name
+              : g.name != null
+                ? g.name
+                : '',
+      );
+      if (id || label) out.push({ id: id, label: label });
+    }
+    return out;
+  }
+
+  function assertAllowedGroups(groups, allowedIds, allowedNames) {
+    allowedIds = allowedIds || [];
+    allowedNames = allowedNames || [];
+    var ids = [];
+    var names = [];
+    var i;
+    for (i = 0; i < allowedIds.length; i++) ids.push(String(allowedIds[i]));
+    for (i = 0; i < allowedNames.length; i++) names.push(String(allowedNames[i]).toLowerCase());
+    if (ids.length === 0 && names.length === 0) return { ok: true };
+
+    var memberGroups = groups || [];
+    for (i = 0; i < memberGroups.length; i++) {
+      var g = memberGroups[i];
+      if (g.id && ids.indexOf(String(g.id)) >= 0) return { ok: true };
+      if (g.label && names.indexOf(String(g.label).toLowerCase()) >= 0) return { ok: true };
+    }
+    return {
+      ok: false,
+      error: 'You are not in an authorized member group for this step challenge',
+    };
+  }
+
+  function assertAuthorizedMember(member, allowedIds, allowedNames) {
+    var active = assertActiveMember(member);
+    if (!active.ok) return active;
+    return assertAllowedGroups(member && member.groups, allowedIds, allowedNames);
+  }
+
   function upsertDailySteps(rows, entry) {
     var contactId = String(entry.contactId);
     var date = entry.date;
@@ -160,6 +231,10 @@ var Domain = (function () {
     validateDateKey: validateDateKey,
     validateSteps: validateSteps,
     assertActiveMember: assertActiveMember,
+    parseAllowList: parseAllowList,
+    parseGroupsFromFieldValues: parseGroupsFromFieldValues,
+    assertAllowedGroups: assertAllowedGroups,
+    assertAuthorizedMember: assertAuthorizedMember,
     upsertDailySteps: upsertDailySteps,
     aggregateTotals: aggregateTotals,
     findStepsForDate: findStepsForDate,

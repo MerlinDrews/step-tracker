@@ -91,12 +91,17 @@ async function handleApi(req, res, url) {
   const handlers = createMockHandlers(createRequestStorage(req));
   const route = url.pathname.replace(/^\/api/, '') || '/';
 
-  if (req.method === 'GET' && route === '/totals') {
-    return sendJson(res, 200, await handlers.getTotals());
+  if (req.method === 'GET' && route === '/public-total') {
+    return sendJson(res, 200, await handlers.getPublicTotal());
+  }
+  if (req.method === 'GET' && route === '/leaderboard') {
+    const result = await handlers.getLeaderboard();
+    return sendJson(res, result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403, result);
   }
   if (req.method === 'GET' && route === '/me') {
     const result = await handlers.getMe(url.searchParams.get('date') || undefined);
-    return sendJson(res, result.ok ? 200 : 401, result);
+    const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
+    return sendJson(res, status, result);
   }
   if (req.method === 'GET' && route === '/mock-users') {
     return sendJson(res, 200, { ok: true, users: handlers.listMockUsers() });

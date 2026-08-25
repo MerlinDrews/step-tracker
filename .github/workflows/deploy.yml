@@ -36,24 +36,32 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Build WA widget snippet
+      - name: Build WA widget snippets
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           APPS_SCRIPT_URL: ${{ secrets.APPS_SCRIPT_URL }}
           WA_SITE_URL: ${{ secrets.WA_SITE_URL }}
+          JOIN_URL: ${{ secrets.JOIN_URL }}
+          APP_URL: ${{ secrets.APP_URL }}
         run: |
           if [ -n "$APPS_SCRIPT_URL" ] && [ -n "$WA_SITE_URL" ]; then
+            # Default APP_URL to this repo's GitHub Pages URL when secret unset
+            if [ -z "$APP_URL" ]; then
+              APP_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
+              export APP_URL
+              echo "APP_URL defaulted to $APP_URL"
+            fi
             npm run build:widget
           else
             echo "Skipping widget build (secrets not set)"
           fi
 
-      - name: Upload widget artifact
-        if: hashFiles('dist/aiwcd-step-counter-widget.html') != ''
+      - name: Upload widget artifacts
+        if: hashFiles('dist/aiwcd-steps-widget.html') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: aiwcd-step-counter-widget
-          path: dist/aiwcd-step-counter-widget.html
+          name: aiwcd-steps-widget
+          path: dist/aiwcd-steps-widget.html
 
   deploy:
     name: Deploy GitHub Pages
@@ -86,6 +94,7 @@ jobs:
           const fs = require('fs');
           const config = {
             MODE: 'prod',
+            PART: 'all',
             APPS_SCRIPT_URL: process.env.APPS_SCRIPT_URL,
             WA_SITE_URL: process.env.WA_SITE_URL,
             AUTH_START_PATH: '?action=auth_start',
