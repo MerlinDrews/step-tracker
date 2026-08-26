@@ -11,10 +11,6 @@ import {
 
 const api = createApi();
 
-const AUTH_ATTEMPT_KEY = 'step-counter-auth-attempted';
-/** In-memory lock so parallel leaderboard/track inits only redirect once. */
-let authRedirectStarted = false;
-
 /** @type {string} */
 let selectedDate = todayKey();
 /** @type {Record<string, number>} */
@@ -615,36 +611,6 @@ function setupForm() {
   });
 }
 
-function maybeAutoConnect(result) {
-  if (api.mode !== 'prod') return false;
-  if (result.ok) {
-    sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
-    authRedirectStarted = false;
-    return false;
-  }
-
-  const err = result.error || '';
-  if (/authorized member group|not active|Membership/i.test(err)) {
-    return false;
-  }
-  // Only kick off SSO when the API says we have no app session.
-  if (err && !/not signed in/i.test(err)) {
-    return false;
-  }
-
-  if (!getConfig().WORKER_URL) return false;
-  if (api.hasSession()) return false;
-  if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
-
-  authRedirectStarted = true;
-  sessionStorage.setItem(AUTH_ATTEMPT_KEY, '1');
-  Promise.resolve(api.startClubLogin()).catch(() => {
-    authRedirectStarted = false;
-    sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
-  });
-  return true;
-}
-
 async function initTotal() {
   const res = await api.getPublicTotal();
   if (res.ok) renderPublicTotal(res.totalSteps);
@@ -652,15 +618,10 @@ async function initTotal() {
 }
 
 async function initLeaderboard() {
-  // Avoid flashing the Connect button while we still might auto-SSO.
   if (els.boardGate) els.boardGate.hidden = true;
   if (els.boardContent) els.boardContent.hidden = true;
 
   const board = await api.getLeaderboard();
-  if (maybeAutoConnect(board)) {
-    setLoading(true, 'Connecting to club login…');
-    return;
-  }
 
   if (board.ok) {
     showBoardContent(board.totals);
@@ -684,10 +645,6 @@ async function initTrack() {
   renderCalendar();
 
   const me = await api.getMe(selectedDate);
-  if (maybeAutoConnect(me)) {
-    setLoading(true, 'Connecting to club login…');
-    return;
-  }
 
   if (me.ok) {
     showTrackApp(me.member);
@@ -708,31 +665,6 @@ async function initTrack() {
       errorMessage: groupDenied ? me.error : '',
     });
   }
-}
-
-/**
- * Prod: start WA SSO immediately when there is no session (no Connect click).
- * @returns {Promise<boolean>} true if a redirect was started
- */
-async function maybeStartProdLogin() {
-  if (api.mode !== 'prod') return false;
-  if (api.hasSession()) return false;
-  if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
-  if (!getConfig().WORKER_URL) return false;
-
-  authRedirectStarted = true;
-  sessionStorage.setItem(AUTH_ATTEMPT_KEY, '1');
-  setLoading(true, 'Connecting to club login…');
-  try {
-    await api.startClubLogin();
-  } catch (err) {
-    authRedirectStarted = false;
-    sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
-    setLoading(false);
-    setMessage(els.formErrorBoard, err?.message || String(err));
-    return false;
-  }
-  return true;
 }
 
 async function init() {
@@ -762,15 +694,7 @@ async function init() {
       const oauth = await api.completeOAuthFromRedirect();
       if (oauth && oauth.ok === false) {
         setMessage(els.formErrorBoard, oauth.error);
-      } else if (oauth && oauth.ok && !oauth.skipped) {
-        sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
       }
-    }
-
-    // Auto SSO before auth-gated API calls when there is no session yet.
-    if (await maybeStartProdLogin()) {
-      if (totalPromise) await totalPromise;
-      return;
     }
 
     if (part === 'all') {
@@ -779,7 +703,6 @@ async function init() {
         initLeaderboard(),
         initTrack(),
       ]);
-      if (authRedirectStarted) return;
       return;
     }
 
@@ -795,7 +718,7 @@ async function init() {
 
     await initTrack();
   } finally {
-    if (!authRedirectStarted) setLoading(false);
+    setLoading(false);
   }
 }
 
