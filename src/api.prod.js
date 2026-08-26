@@ -5,38 +5,19 @@ const OAUTH_REDIRECT_KEY = 'step-counter-oauth-redirect';
 
 /**
  * Wild Apricot / Apps Script production API client.
- * Prefer fetch (Apps Script sends Access-Control-Allow-Origin: *).
- * JSONP is a fallback — some browsers fire script.onerror on the
- * script.google.com → googleusercontent.com redirect.
+ * Public reads use GET; authenticated calls use POST with Bearer + body token only.
  * @param {Record<string, unknown>} config
  */
 export function createProdApi(config) {
   const base = String(config.APPS_SCRIPT_URL || '').replace(/\/$/, '');
 
-  const params = new URLSearchParams(window.location.search);
-  const fromUrl = params.get('sessionToken');
-  if (fromUrl) {
-    sessionStorage.setItem(TOKEN_KEY, fromUrl);
-    sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
-    params.delete('sessionToken');
-    const clean = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`;
-    window.history.replaceState({}, '', clean);
-  }
-
   function pageRedirectUri() {
     return window.location.href.split('?')[0].split('#')[0];
   }
 
-  function buildUrl(action, query = {}) {
+  function buildUrl(action) {
     const url = new URL(base);
     url.searchParams.set('action', action);
-    for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined && value !== null && value !== '') {
-        url.searchParams.set(key, String(value));
-      }
-    }
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    if (token) url.searchParams.set('sessionToken', token);
     return url;
   }
 
@@ -46,48 +27,20 @@ export function createProdApi(config) {
     }
   }
 
-  function jsonp(action, query = {}) {
-    return new Promise((resolve) => {
-      if (!base) {
-        resolve({ ok: false, error: 'APPS_SCRIPT_URL is not configured' });
-        return;
-      }
-      const cb = `aiwcdCb_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
-      const url = buildUrl(action, query);
-      url.searchParams.set('callback', cb);
-
-      const script = document.createElement('script');
-      let settled = false;
-      const finish = (data) => {
-        if (settled) return;
-        settled = true;
-        delete window[cb];
-        script.remove();
-        resolve(data);
-      };
-
-      window[cb] = (data) => {
-        storeSessionFrom(data);
-        finish(data && typeof data === 'object' ? data : { ok: false, error: 'Invalid JSONP response' });
-      };
-      script.onerror = () =>
-        finish({
-          ok: false,
-          error: 'Could not reach the step API (script load failed).',
-        });
-      script.async = true;
-      script.src = url.toString();
-      document.head.appendChild(script);
-      setTimeout(() => finish({ ok: false, error: 'Step API timed out' }), 20000);
-    });
+  function authHeaders() {
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    const headers = { Accept: 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return { token, headers };
   }
 
-  async function fetchGet(action, query = {}) {
+  async function fetchGet(action) {
     if (!base) {
       return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
     }
-    const res = await fetch(buildUrl(action, query).toString(), {
+    const res = await fetch(buildUrl(action).toString(), {
       method: 'GET',
+      headers: { Accept: 'application/json' },
       redirect: 'follow',
       credentials: 'omit',
     });
@@ -100,24 +53,16 @@ export function createProdApi(config) {
     return data.ok === undefined ? { ok: true, ...data } : data;
   }
 
-  async function getAction(action, query = {}) {
-    try {
-      return await fetchGet(action, query);
-    } catch {
-      return jsonp(action, query);
-    }
-  }
-
   async function postAction(action, body = {}) {
     if (!base) {
       return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
     }
-    const token = sessionStorage.getItem(TOKEN_KEY);
+    const { token, headers } = authHeaders();
     // text/plain avoids CORS preflight when possible.
     const res = await fetch(buildUrl(action).toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...body, sessionToken: token }),
+      headers: { ...headers, 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...body, ...(token ? { sessionToken: token } : {}) }),
       redirect: 'follow',
       credentials: 'omit',
     });
@@ -152,7 +97,7 @@ export function createProdApi(config) {
       let site = siteFromConfig;
 
       if (!clientId || !accountId || !site) {
-        const pub = await getAction('public_config');
+        const pub = await fetchGet('public_config');
         if (!pub.ok) {
           throw new Error(pub.error || 'Could not load club login settings');
         }
@@ -185,6 +130,16 @@ export function createProdApi(config) {
 
     async completeOAuthFromRedirect() {
       const q = new URLSearchParams(window.location.search);
+      const loginCode = q.get('login_code');
+      if (loginCode) {
+        q.delete('login_code');
+        const clean = `${window.location.pathname}${q.toString() ? `?${q}` : ''}${window.location.hash}`;
+        window.history.replaceState({}, '', clean);
+        const res = await postAction('auth_resume', { login_code: loginCode });
+        if (res.ok) sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
+        return res;
+      }
+
       const code = q.get('code');
       if (!code) return { ok: true, skipped: true };
 
@@ -216,7 +171,7 @@ export function createProdApi(config) {
     },
 
     async getMe(selectedDate) {
-      return getAction('me', { date: selectedDate });
+      return postAction('me', { date: selectedDate });
     },
 
     async logSteps(steps, date) {
@@ -224,11 +179,11 @@ export function createProdApi(config) {
     },
 
     async getPublicTotal() {
-      return getAction('public_total');
+      return fetchGet('public_total');
     },
 
     async getLeaderboard() {
-      return getAction('leaderboard');
+      return postAction('leaderboard');
     },
   };
 }

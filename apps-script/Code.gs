@@ -24,8 +24,6 @@
  */
 
 var STEPS_HEADERS = ['date', 'contactId', 'email', 'name', 'steps', 'updated_at'];
-/** Set per-request for JSONP (?callback=) support. */
-var __jsonpCallback = null;
 
 function doGet(e) {
   return handleRequest(e, 'GET');
@@ -36,7 +34,6 @@ function doPost(e) {
 }
 
 function handleRequest(e, method) {
-  __jsonpCallback = (e && e.parameter && e.parameter.callback) || null;
   try {
     var action = (e.parameter && e.parameter.action) || '';
     var body = {};
@@ -53,6 +50,9 @@ function handleRequest(e, method) {
     if (action === 'auth_exchange' && method === 'POST') {
       return handleAuthExchange(body);
     }
+    if (action === 'auth_resume' && method === 'POST') {
+      return handleAuthResume(body);
+    }
     if (action === 'public_config') {
       return jsonOk({
         waClientId: prop('WA_CLIENT_ID') || '',
@@ -65,7 +65,8 @@ function handleRequest(e, method) {
       return jsonOk({ totalSteps: totals.totalSteps || 0 });
     }
     if (action === 'leaderboard') {
-      return handleLeaderboard(e);
+      if (method !== 'POST') return jsonErr('Use POST for leaderboard', 405);
+      return handleLeaderboard(e, body);
     }
     // Legacy alias: never expose contributor names publicly
     if (action === 'totals') {
@@ -73,7 +74,8 @@ function handleRequest(e, method) {
       return jsonOk({ totalSteps: legacy.totalSteps || 0 });
     }
     if (action === 'me') {
-      return handleMe(e);
+      if (method !== 'POST') return jsonErr('Use POST for me', 405);
+      return handleMe(e, body);
     }
     if (action === 'log' && method === 'POST') {
       return handleLog(e, body);
@@ -130,13 +132,28 @@ function handleAuthCallback(params) {
   }
 
   var sessionToken = createSessionToken(member);
+  var loginCode = Utilities.getUuid();
+  CacheService.getScriptCache().put('login_' + loginCode, sessionToken, 120);
   var dest = returnTo || '/';
   var sep = dest.indexOf('?') >= 0 ? '&' : '?';
-  // Frontend reads session from redirect query then stores it; prefer fragment-less query for Apps Script simplicity.
-  var redirectUrl = dest + sep + 'sessionToken=' + encodeURIComponent(sessionToken);
+  // One-time code in URL — exchanged via POST auth_resume (never put session tokens in GET URLs).
+  var redirectUrl = dest + sep + 'login_code=' + encodeURIComponent(loginCode);
   return HtmlService.createHtmlOutput(
     '<script>window.location.href=' + JSON.stringify(redirectUrl) + ';</script>',
   );
+}
+
+/** Exchange a one-time login_code from auth_callback redirect (POST only). */
+function handleAuthResume(body) {
+  var code = body && body.login_code;
+  if (!code) return jsonErr('Missing login_code', 400);
+  var cache = CacheService.getScriptCache();
+  var token = cache.get('login_' + code);
+  if (!token) return jsonErr('Login code expired or invalid', 401);
+  cache.remove('login_' + code);
+  var member = parseSessionToken(token);
+  if (!member) return jsonErr('Invalid session', 401);
+  return jsonOk({ sessionToken: token, member: member });
 }
 
 /**
@@ -348,9 +365,9 @@ function parseSessionToken(token) {
 }
 
 function getSessionFromRequest(e) {
-  var auth = (e && e.parameter && e.parameter.sessionToken) || '';
-  // Apps Script cannot easily read Authorization header in all contexts; also accept body token via doPost.
-  return parseSessionToken(auth);
+  // Session tokens are accepted via Authorization header or POST body only (never query strings).
+  var headerToken = extractBearer_(e);
+  return headerToken ? parseSessionToken(headerToken) : null;
 }
 
 function resolveMember_(e, body) {
@@ -362,23 +379,24 @@ function resolveMember_(e, body) {
 }
 
 /** Members-only ranked list (Active membership; not group-restricted). */
-function handleLeaderboard(e) {
-  var member = resolveMember_(e, null);
+function handleLeaderboard(e, body) {
+  var member = resolveMember_(e, body);
   if (!member) return jsonErr('Not signed in', 401);
   var gate = Domain.assertActiveMember(member);
   if (!gate.ok) return jsonErr(gate.error, 403);
   return jsonOk({ totals: getTotalsFromSheet(), member: member });
 }
 
-function handleMe(e) {
-  var member = resolveMember_(e, null);
+function handleMe(e, body) {
+  body = body || {};
+  var member = resolveMember_(e, body);
   if (!member) return jsonErr('Not signed in', 401);
   var gate = authorizeMember_(member);
   if (!gate.ok) return jsonErr(gate.error, 403);
 
   var rows = readStepsRows();
   var today = Domain.todayKey();
-  var selected = (e.parameter && e.parameter.date) || today;
+  var selected = body.date || today;
   var dateCheck = Domain.validateDateKey(selected, today);
   if (!dateCheck.ok) return jsonErr(dateCheck.error, 400);
   var history = Domain.historyForContact(rows, member.contactId);
@@ -394,8 +412,7 @@ function handleMe(e) {
 }
 
 function handleLog(e, body) {
-  var member = parseSessionToken(extractBearer_(e)) || getSessionFromRequest(e);
-  if (!member && body && body.sessionToken) member = parseSessionToken(body.sessionToken);
+  var member = resolveMember_(e, body);
   if (!member) return jsonErr('Not signed in', 401);
   var gate = authorizeMember_(member);
   if (!gate.ok) return jsonErr(gate.error, 403);
@@ -489,12 +506,7 @@ function jsonErr(message, code) {
 }
 
 function packJson_(obj) {
-  var text = JSON.stringify(obj);
-  var cb = __jsonpCallback;
-  if (cb && /^[A-Za-z_][A-Za-z0-9_]*$/.test(String(cb))) {
-    return ContentService.createTextOutput(String(cb) + '(' + text + ');').setMimeType(
-      ContentService.MimeType.JAVASCRIPT,
-    );
-  }
-  return ContentService.createTextOutput(text).setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
 }

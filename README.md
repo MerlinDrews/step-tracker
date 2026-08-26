@@ -67,7 +67,7 @@ src/domain/          Pure logic — unit tested
 src/mock/            Shared mock handlers + members
 src/api.local.js     Browser client for local CSV API
 src/api.mock.js      In-memory mock for unit tests
-src/api.prod.js      Apps Script client (JSONP GET + text/plain POST)
+src/api.prod.js      Apps Script client (fetch GET public + POST authenticated)
 src/api.widget.js    Widget build entry (prod-only)
 src/app.js           UI
 apps-script/         Code.gs + Domain.gs for production
@@ -120,7 +120,7 @@ npm test
 | `leaderboard` | Active member session | `{ totals: { totalSteps, contributors } }` |
 | `me` / `log` | Active + group allow-list | Member day history / upsert |
 
-GETs support JSONP (`?callback=`). POSTs expect `text/plain` JSON bodies (avoids CORS preflight).
+Public reads (`public_total`, `public_config`) use GET. Authenticated actions (`me`, `leaderboard`, `log`, `auth_exchange`) use POST with `Authorization: Bearer` and/or a JSON body (`text/plain`, avoids CORS preflight). Session tokens are never sent in URL query strings.
 
 ## Modes
 
