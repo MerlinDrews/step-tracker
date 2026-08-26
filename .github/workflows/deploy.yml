@@ -108,7 +108,7 @@ jobs:
       - name: Prepare Pages artifact
         run: |
           mkdir -p dist
-          cp index.html styles.css config.js favicon.svg apple-touch-icon.svg dist/
+          cp index.html styles.css config.js favicon.ico favicon.svg apple-touch-icon.svg dist/
           cp -R src dist/src
           # Bust CDN/browser cache for ES module graph after API contract changes
           SHA="${GITHUB_SHA:0:7}"
