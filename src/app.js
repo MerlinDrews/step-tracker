@@ -111,10 +111,12 @@ function clubLoginUrl() {
   return site ? `${site}/Sys/Login` : '#';
 }
 
+const DEFAULT_JOIN_URL = 'https://www.aiwcduesseldorf.org/event-6782449';
+
 function joinUrl() {
   const config = getConfig();
   if (config.JOIN_URL) return String(config.JOIN_URL);
-  return clubLoginUrl();
+  return DEFAULT_JOIN_URL;
 }
 
 function setMessage(el, text) {

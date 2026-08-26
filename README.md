@@ -33,7 +33,7 @@ Push to `main` triggers CI: unit tests → Worker deploy → GitHub Pages.
 | `CLOUDFLARE_API_TOKEN` | Worker + D1 deploy |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account |
 
-Optional: `JOIN_URL` for Walkathon join link in the track CTA.
+Optional: `JOIN_URL` to override the Walkathon event link (defaults to the club event page).
 
 ### Worker setup
 

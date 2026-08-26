@@ -11,6 +11,6 @@ window.STEP_COUNTER_CONFIG = {
   WORKER_URL: '',
   /** Club Wild Apricot site origin, e.g. https://www.aiwcduesseldorf.org */
   WA_SITE_URL: '',
-  /** Optional Walkathon join / info URL (defaults to site login). */
-  JOIN_URL: '',
+  /** Walkathon event page for the track CTA (override if the event URL changes). */
+  JOIN_URL: 'https://www.aiwcduesseldorf.org/event-6782449',
 };
