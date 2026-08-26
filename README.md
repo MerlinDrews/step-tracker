@@ -120,7 +120,7 @@ npm test
 | `leaderboard` | Active member session | `{ totals: { totalSteps, contributors } }` |
 | `me` / `log` | Active + group allow-list | Member day history / upsert |
 
-Public reads (`public_total`, `public_config`) use GET. Authenticated actions (`me`, `leaderboard`, `log`, `auth_exchange`) use POST with `Authorization: Bearer` and/or a JSON body (`text/plain`, avoids CORS preflight). Session tokens are never sent in URL query strings.
+Public reads (`public_total`, `public_config`) use GET. Authenticated actions (`me`, `leaderboard`, `log`, `auth_exchange`) use POST with `sessionToken` in a `text/plain` JSON body (no `Authorization` header — Apps Script does not answer CORS preflight). Session tokens are never sent in URL query strings.
 
 ## Modes
 

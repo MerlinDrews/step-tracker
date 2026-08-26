@@ -5,7 +5,8 @@ const OAUTH_REDIRECT_KEY = 'step-counter-oauth-redirect';
 
 /**
  * Wild Apricot / Apps Script production API client.
- * Public reads use GET; authenticated calls use POST with Bearer + body token only.
+ * Public reads use GET; authenticated calls use POST with sessionToken in the body only
+ * (text/plain, no Authorization header — Apps Script does not answer CORS preflight).
  * @param {Record<string, unknown>} config
  */
 export function createProdApi(config) {
@@ -27,52 +28,52 @@ export function createProdApi(config) {
     }
   }
 
-  function authHeaders() {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    const headers = { Accept: 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    return { token, headers };
-  }
-
   async function fetchGet(action) {
     if (!base) {
       return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
     }
-    const res = await fetch(buildUrl(action).toString(), {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      redirect: 'follow',
-      credentials: 'omit',
-    });
-    const data = await res.json().catch(() => ({}));
-    storeSessionFrom(data);
-    if (data.ok === false) return data;
-    if (!res.ok) {
-      return { ok: false, error: data.error || `Request failed (${res.status})` };
+    try {
+      const res = await fetch(buildUrl(action).toString(), {
+        method: 'GET',
+        redirect: 'follow',
+        credentials: 'omit',
+      });
+      const data = await res.json().catch(() => ({}));
+      storeSessionFrom(data);
+      if (data.ok === false) return data;
+      if (!res.ok) {
+        return { ok: false, error: data.error || `Request failed (${res.status})` };
+      }
+      return data.ok === undefined ? { ok: true, ...data } : data;
+    } catch {
+      return { ok: false, error: 'Could not reach the step API.' };
     }
-    return data.ok === undefined ? { ok: true, ...data } : data;
   }
 
   async function postAction(action, body = {}) {
     if (!base) {
       return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
     }
-    const { token, headers } = authHeaders();
-    // text/plain avoids CORS preflight when possible.
-    const res = await fetch(buildUrl(action).toString(), {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ ...body, ...(token ? { sessionToken: token } : {}) }),
-      redirect: 'follow',
-      credentials: 'omit',
-    });
-    const data = await res.json().catch(() => ({}));
-    storeSessionFrom(data);
-    if (data.ok === false) return data;
-    if (!res.ok) {
-      return { ok: false, error: data.error || `Request failed (${res.status})` };
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    try {
+      // text/plain + no Authorization keeps this a "simple" CORS POST (no preflight).
+      const res = await fetch(buildUrl(action).toString(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ ...body, ...(token ? { sessionToken: token } : {}) }),
+        redirect: 'follow',
+        credentials: 'omit',
+      });
+      const data = await res.json().catch(() => ({}));
+      storeSessionFrom(data);
+      if (data.ok === false) return data;
+      if (!res.ok) {
+        return { ok: false, error: data.error || `Request failed (${res.status})` };
+      }
+      return data.ok === undefined ? { ok: true, ...data } : data;
+    } catch {
+      return { ok: false, error: 'Could not reach the step API.' };
     }
-    return data.ok === undefined ? { ok: true, ...data } : data;
   }
 
   return {

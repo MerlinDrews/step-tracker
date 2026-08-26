@@ -110,6 +110,9 @@ jobs:
           mkdir -p dist
           cp index.html styles.css config.js dist/
           cp -R src dist/src
+          # Bust CDN/browser cache for ES module graph after API contract changes
+          SHA="${GITHUB_SHA:0:7}"
+          sed -i "s|src=\"./src/app.js\"|src=\"./src/app.js?v=${SHA}\"|" dist/index.html
           # Static site only — no Node server, tests, or local CSV data
           find dist -type f | sort
 
