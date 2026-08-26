@@ -735,6 +735,10 @@ async function init() {
     if (els.trackApp) els.trackApp.hidden = true;
   }
 
+  const showTotal = part === 'all' || part === 'total';
+  // Public total needs no auth — start immediately (even during OAuth below).
+  const totalPromise = showTotal ? initTotal() : null;
+
   setLoading(true, 'Loading step tracker…');
   try {
     if (api.completeOAuthFromRedirect) {
@@ -747,30 +751,32 @@ async function init() {
       }
     }
 
-    // Public total needs no auth — show it while SSO may redirect.
-    if (part === 'all' || part === 'total') {
-      setLoading(true, 'Loading totals…');
-      await initTotal();
+    // Auto SSO before auth-gated API calls when there is no session yet.
+    if (await maybeStartProdLogin()) {
+      if (totalPromise) await totalPromise;
+      return;
     }
-
-    // Auto SSO before painting Connect / Walkathon CTAs.
-    if (await maybeStartProdLogin()) return;
 
     if (part === 'all') {
-      setLoading(true, 'Loading leaderboard…');
-      await initLeaderboard();
+      await Promise.all([
+        totalPromise ?? Promise.resolve(),
+        initLeaderboard(),
+        initTrack(),
+      ]);
       if (authRedirectStarted) return;
-      setLoading(true, 'Loading your steps…');
-      await initTrack();
       return;
     }
+
     if (part === 'total') {
+      if (totalPromise) await totalPromise;
       return;
     }
+
     if (part === 'leaderboard') {
       await initLeaderboard();
       return;
     }
+
     await initTrack();
   } finally {
     if (!authRedirectStarted) setLoading(false);
