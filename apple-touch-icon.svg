@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="AIWCD">
+  <rect width="180" height="180" rx="32" fill="#003b5f"/>
+  <path
+    fill="#ffffff"
+    d="M90 28 143 146h-20.2l-10.7-27H67.9L57.2 146H37L90 28zm-6.8 74.2h24.8L90 72l-6.8 30.2z"
+  />
+  <path
+    fill="#893441"
+    d="M126.5 138c0-12.4 9-19.2 14-28.2 5 9 14 15.8 14 28.2 0 7.8-6.2 14-14 14s-14-6.2-14-14z"
+  />
+</svg>
