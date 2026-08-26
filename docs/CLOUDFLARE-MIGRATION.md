@@ -225,7 +225,7 @@ Pages still deploy via push to `main` unless you use GitHub Actions **workflow_d
 | `admin_contributors` | Admin | Full contributor list (admin picker) |
 | `admin_export` / `admin_import` | Admin | CSV bulk edit (Phase 2) |
 
-Frontend reads `WORKER_URL` (falls back to `APPS_SCRIPT_URL` during transition).
+Frontend reads `WORKER_URL` from generated `config.js`.
 
 ## Phase 2 — Data migration (Sheet → D1)
 
@@ -233,7 +233,7 @@ Frontend reads `WORKER_URL` (falls back to `APPS_SCRIPT_URL` during transition).
 2. Import via `npm run worker:import -- data/export.csv` (script TBD) or `admin_import`.
 3. **Dedupe on import:** if Sheet had duplicate `(date, contactId)`, keep latest `updated_at`.
 4. Verify: club total matches; spot-check personal totals; leaderboard shows top 10.
-5. Cut over GitHub Pages `WORKER_URL`; decommission Apps Script after soak period.
+5. Cut over GitHub Pages `WORKER_URL`; archive any legacy Sheet data after verification.
 
 ## Phase 3 — Manual data management
 
@@ -263,7 +263,7 @@ Unchanged from prior estimate — club usage is well within Workers + D1 free li
 
 ## Rollback
 
-Revert GitHub `WORKER_URL` → `APPS_SCRIPT_URL` and redeploy Pages. Sheet archive can re-seed Apps Script if needed.
+Restore D1 from Time Travel or a CSV export backup. Re-point `WORKER_URL` if you deploy a previous Worker revision.
 
 ## Decision log
 
@@ -273,4 +273,3 @@ Revert GitHub `WORKER_URL` → `APPS_SCRIPT_URL` and redeploy Pages. Sheet archi
 | Leaderboard | Top 10 display; full club total |
 | Personal total | Walkathon participants only, authenticated |
 | Same-day re-log | D1 upsert + domain dedupe |
-| Apps Script + Sheet | Deprecated after cutover |

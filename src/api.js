@@ -8,13 +8,13 @@ function onGitHubPages() {
 function getConfig() {
   const base = window.STEP_COUNTER_CONFIG || {};
   // Hosted tracker is always production — never the local CSV mock.
-  if (onGitHubPages() || base.EMBEDDED) {
+  if (onGitHubPages()) {
     return { ...base, MODE: 'prod' };
   }
   return { MODE: 'local', ...base };
 }
 
-/** Local mode talks to the CSV-backed Node server. Prod uses Cloudflare Worker or Apps Script. */
+/** Local mode talks to the CSV-backed Node server. Prod uses the Cloudflare Worker. */
 export function createApi() {
   const config = getConfig();
   if ((config.MODE || 'local') === 'local') {

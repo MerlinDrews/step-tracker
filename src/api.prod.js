@@ -4,13 +4,13 @@ const OAUTH_STATE_KEY = 'step-counter-oauth-state';
 const OAUTH_REDIRECT_KEY = 'step-counter-oauth-redirect';
 
 /**
- * Wild Apricot / Apps Script production API client.
- * Public reads use GET; authenticated calls use POST with sessionToken in the body only
- * (text/plain, no Authorization header — Apps Script does not answer CORS preflight).
+ * Cloudflare Worker production API client.
+ * Public reads use GET; authenticated calls use POST with sessionToken in the body
+ * (text/plain JSON — simple CORS, no preflight).
  * @param {Record<string, unknown>} config
  */
 export function createProdApi(config) {
-  const base = String(config.WORKER_URL || config.APPS_SCRIPT_URL || '').replace(/\/$/, '');
+  const base = String(config.WORKER_URL || '').replace(/\/$/, '');
 
   function pageRedirectUri() {
     return window.location.href.split('?')[0].split('#')[0];
@@ -30,7 +30,7 @@ export function createProdApi(config) {
 
   async function fetchGet(action) {
     if (!base) {
-      return { ok: false, error: 'WORKER_URL (or APPS_SCRIPT_URL) is not configured' };
+      return { ok: false, error: 'WORKER_URL is not configured' };
     }
     try {
       const res = await fetch(buildUrl(action).toString(), {
@@ -52,11 +52,10 @@ export function createProdApi(config) {
 
   async function postAction(action, body = {}) {
     if (!base) {
-      return { ok: false, error: 'WORKER_URL (or APPS_SCRIPT_URL) is not configured' };
+      return { ok: false, error: 'WORKER_URL is not configured' };
     }
     const token = sessionStorage.getItem(TOKEN_KEY);
     try {
-      // text/plain + no Authorization keeps this a "simple" CORS POST (no preflight).
       const res = await fetch(buildUrl(action).toString(), {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },

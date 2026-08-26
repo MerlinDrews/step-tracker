@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#003b5f" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://www.aiwcduesseldorf.org https://cdn.wildapricot.com data:; connect-src 'self' https://*.workers.dev https://script.google.com https://script.googleusercontent.com; form-action 'self'"
+      content="default-src 'self'; base-uri 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://www.aiwcduesseldorf.org https://cdn.wildapricot.com data:; connect-src 'self' https://*.workers.dev; form-action 'self'"
     />
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
@@ -23,7 +23,6 @@
     <script src="./config.js"></script>
   </head>
   <body>
-    <!-- WIDGET_MARKUP_START -->
     <div id="aiwcd-step-counter" class="aiwcd-step-counter">
       <header class="site-header">
         <div class="site-header__inner">
@@ -153,7 +152,6 @@
           <h2 id="admin-heading" class="panel__title">Admin — edit participant steps</h2>
           <p class="lede admin__lede">
             For club admins only. Override a participant&rsquo;s daily step count when they need help logging.
-            You can also edit the Google Sheet directly; changes may take up to two minutes to appear here.
           </p>
 
           <label class="field" for="admin-participant">
@@ -197,7 +195,6 @@
         <p class="site-footer__hint">Members: sign in with your club account to log steps and view the leaderboard.</p>
       </footer>
     </div>
-    <!-- WIDGET_MARKUP_END -->
 
     <script type="module" src="./src/app.js"></script>
   </body>

@@ -1,4 +1,4 @@
-/* Scoped under .aiwcd-step-counter for Wild Apricot Custom HTML embeds */
+/* Scoped under .aiwcd-step-counter */
 /* Palette: https://www.aiwcduesseldorf.org/ */
 
 body {
@@ -109,13 +109,6 @@ body {
 .aiwcd-step-counter *::before,
 .aiwcd-step-counter *::after {
   box-sizing: border-box;
-}
-
-/* Combined embed: keep launcher / total surfaces visible if a host sets [hidden]. */
-.aiwcd-step-counter.embedded > .page > #section-total,
-.aiwcd-step-counter.embedded > .page > .hero,
-.aiwcd-step-counter.embedded > .page > .launcher__cta {
-  display: block !important;
 }
 
 .aiwcd-step-counter a {

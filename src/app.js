@@ -9,22 +9,9 @@ import {
   validateSteps,
 } from './domain/index.js';
 
-/**
- * Per-gadget boot (set by build-widget just before this IIFE).
- * Lets multiple widgets coexist on one Wild Apricot page.
- */
-const boot = window.__AIWCD_BOOT__ || {};
-
-const bootConfig = {
-  ...(window.STEP_COUNTER_CONFIG || {}),
-  ...(boot.config || {}),
-};
-
 const api = createApi();
-if (window.__AIWCD_BOOT__) {
-  // Consume after createApi so the next gadget on the page gets its own boot.
-  delete window.__AIWCD_BOOT__;
-}const AUTH_ATTEMPT_KEY = 'step-counter-auth-attempted';
+
+const AUTH_ATTEMPT_KEY = 'step-counter-auth-attempted';
 /** In-memory lock so parallel leaderboard/track inits only redirect once. */
 let authRedirectStarted = false;
 
@@ -46,51 +33,25 @@ let isAdmin = false;
 let adminContributors = [];
 
 function getConfig() {
-  return { ...(window.STEP_COUNTER_CONFIG || {}), ...bootConfig };
+  return window.STEP_COUNTER_CONFIG || {};
 }
 
 /** @returns {'total' | 'leaderboard' | 'track' | 'all'} */
-function resolvePart(rootEl) {
-  const fromRoot = rootEl?.dataset?.aiwcdPart;
-  const fromBoot = bootConfig.PART || boot.part;
+function resolvePart() {
   const params = new URLSearchParams(window.location.search);
   const fromQuery = params.get('part');
-  // Root attribute and boot win over ?part= so gadgets on one page stay independent.
-  const raw = String(fromRoot || fromBoot || fromQuery || 'all').toLowerCase();
+  const raw = String(fromQuery || getConfig().PART || 'all').toLowerCase();
   if (raw === 'total' || raw === 'leaderboard' || raw === 'track' || raw === 'all') {
     return raw;
   }
   return 'all';
 }
 
-function findRoot() {
-  if (boot.rootId) {
-    const byId = document.getElementById(boot.rootId);
-    if (byId) return byId;
-  }
-  const hinted = bootConfig.PART || boot.part;
-  if (hinted) {
-    const byPart = document.querySelector(
-      `.aiwcd-step-counter[data-aiwcd-part="${hinted}"]:not([data-aiwcd-ready])`,
-    );
-    if (byPart) return byPart;
-  }
-  return (
-    document.querySelector('.aiwcd-step-counter:not([data-aiwcd-ready])') ||
-    document.getElementById('aiwcd-step-counter')
-  );
-}
-
-const root = findRoot();
+const root = document.getElementById('aiwcd-step-counter');
 /** @type {'total' | 'leaderboard' | 'track' | 'all'} */
-let part = resolvePart(root);
-// WA embeds are always the combined gadget. Ignore stale PART:"track" in old pastes.
-if (bootConfig.EMBEDDED) {
-  part = 'all';
-}
+let part = resolvePart();
 if (root) {
   root.dataset.aiwcdPart = part;
-  root.dataset.aiwcdReady = '1';
 }
 
 /** @param {string} id */
@@ -160,73 +121,6 @@ function joinUrl() {
   return clubLoginUrl();
 }
 
-function hostedAppUrl() {
-  return String(getConfig().APP_URL || '').replace(/\/$/, '');
-}
-
-/** WA Custom HTML cannot call Apps Script (CSP blocks googleusercontent). */
-function isWaBridge() {
-  return Boolean(getConfig().EMBEDDED);
-}
-
-function openHostedApp() {
-  const url = hostedAppUrl();
-  if (!url) {
-    const msg =
-      'Hosted tracker URL is missing. Rebuild with APP_URL=https://your.github.io/step-counter/';
-    setMessage(els.formErrorBoard, msg);
-    setMessage(els.formErrorTrack, msg);
-    return;
-  }
-  window.location.href = url;
-}
-
-function setupWaBridgeUi() {
-  if (els.root) {
-    els.root.classList.add('embedded');
-    els.root.dataset.part = 'all';
-  }
-  if (els.totalSteps) els.totalSteps.textContent = '—';
-
-  showBoardGate({ needsConnect: true });
-  if (els.boardGateLede) {
-    els.boardGateLede.textContent =
-      'Open the club step tracker to see the leaderboard and connect your login. (This page cannot reach the step API.)';
-  }
-  if (els.boardGateAction && els.boardLoginLink) {
-    els.boardLoginLink.textContent = 'Open step tracker';
-    els.boardLoginLink.href = hostedAppUrl() || '#';
-    els.boardLoginLink.classList.add('btn', 'btn--primary');
-    els.boardGateAction.hidden = false;
-    els.boardLoginLink.addEventListener('click', (event) => {
-      event.preventDefault();
-      openHostedApp();
-    });
-  }
-
-  showTrackCta();
-  if (els.trackCtaLede) {
-    els.trackCtaLede.textContent =
-      'Log your daily Walkathon steps in the club step tracker.';
-  }
-  if (els.trackCtaAction && els.joinLink) {
-    els.joinLink.textContent = 'Open step tracker';
-    els.joinLink.href = hostedAppUrl() || '#';
-    els.trackCtaAction.hidden = false;
-    els.joinLink.addEventListener('click', (event) => {
-      event.preventDefault();
-      openHostedApp();
-    });
-  }
-
-  if (!hostedAppUrl()) {
-    const msg =
-      'Rebuild widget with APP_URL pointing at your GitHub Pages tracker (Wild Apricot blocks Apps Script here).';
-    setMessage(els.formErrorBoard, msg);
-    setMessage(els.formErrorTrack, msg);
-  }
-}
-
 function setMessage(el, text) {
   if (!el) return;
   el.textContent = text || '';
@@ -250,11 +144,7 @@ function escapeHtml(s) {
 
 function showPartSections() {
   const present = [els.sectionTotal, els.sectionTrack, els.sectionLeaderboard].filter(Boolean);
-  // Combined WA embed includes all three sections. Never hide them — even if PART
-  // resolves to "track" (old paste, stripped data-attrs, or page ?part=).
-  const embedded = Boolean(getConfig().EMBEDDED);
-  const showAll =
-    part === 'all' || embedded || present.length !== 3 || present.length <= 1;
+  const showAll = part === 'all' || present.length !== 3 || present.length <= 1;
 
   if (showAll) {
     for (const section of present) {
@@ -269,7 +159,6 @@ function showPartSections() {
   }
   if (els.root) {
     els.root.dataset.part = showAll ? 'all' : part;
-    if (embedded) els.root.classList.add('embedded');
   }
 }
 
@@ -575,12 +464,8 @@ function fillMockUsers(container, onSuccess) {
 }
 
 function setupAuthUi() {
-  const config = getConfig();
-  const embedded = Boolean(config.EMBEDDED);
-
   if (els.modeBadge) {
-    // Never show mock chrome in production / on GitHub Pages.
-    if (api.mode === 'local' && !embedded) {
+    if (api.mode === 'local') {
       els.modeBadge.hidden = false;
       els.modeBadge.textContent = `Local mock · ${part}`;
       els.modeBadge.dataset.mode = 'local';
@@ -635,7 +520,7 @@ function setupAuthUi() {
   }
 
   if (els.signOut) {
-    els.signOut.hidden = embedded || api.mode === 'prod';
+    els.signOut.hidden = api.mode === 'prod';
     els.signOut.addEventListener('click', async () => {
       await api.logout();
       history = {};
@@ -747,8 +632,7 @@ function maybeAutoConnect(result) {
     return false;
   }
 
-  const config = getConfig();
-  if (!config.APPS_SCRIPT_URL && !config.WORKER_URL) return false;
+  if (!getConfig().WORKER_URL) return false;
   if (api.hasSession()) return false;
   if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
 
@@ -834,7 +718,7 @@ async function maybeStartProdLogin() {
   if (api.mode !== 'prod') return false;
   if (api.hasSession()) return false;
   if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
-  if (!getConfig().WORKER_URL && !getConfig().APPS_SCRIPT_URL) return false;
+  if (!getConfig().WORKER_URL) return false;
 
   authRedirectStarted = true;
   sessionStorage.setItem(AUTH_ATTEMPT_KEY, '1');
@@ -853,12 +737,6 @@ async function maybeStartProdLogin() {
 
 async function init() {
   showPartSections();
-
-  // Legacy EMBEDDED full-app boot (current WA gadget is a separate launcher build).
-  if (isWaBridge()) {
-    setupWaBridgeUi();
-    return;
-  }
 
   setupAuthUi();
   setupCalendar();
