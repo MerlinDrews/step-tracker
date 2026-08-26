@@ -6,7 +6,7 @@
  * (GitHub Pages).
  *
  * Usage:
- *   APPS_SCRIPT_URL='https://script.google.com/...' \
+ *   WORKER_URL='https://step-counter.you.workers.dev' \
  *   WA_SITE_URL='https://www.aiwcduesseldorf.org' \
  *   APP_URL='https://you.github.io/step-tracker/' \
  *   npm run build:widget
@@ -101,7 +101,7 @@ const markup = `
 // Tiny client: try live public_total (works off WA; usually blocked on WA by CSP).
 const launcherJs = `
 (function () {
-  var api = ${JSON.stringify(appsScriptUrl.replace(/\/$/, ''))};
+  var api = ${JSON.stringify(apiUrl)};
   var baked = ${JSON.stringify(bakedTotal)};
   var root = document.getElementById('aiwcd-step-counter');
   if (!root || !api || api.indexOf('REPLACE_WITH') === 0) return;
@@ -165,6 +165,6 @@ if (chars > MAX_CHARS) {
 if (!appUrl) {
   console.log('NOTE: Set APP_URL to your GitHub Pages tracker URL.');
 }
-if (appsScriptUrl.includes('REPLACE_WITH')) {
-  console.log('NOTE: Set APPS_SCRIPT_URL when building for production paste.');
+if (apiUrl.includes('REPLACE_WITH')) {
+  console.log('NOTE: Set WORKER_URL (or APPS_SCRIPT_URL) when building for production paste.');
 }

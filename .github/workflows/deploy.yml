@@ -47,13 +47,13 @@ jobs:
         run: |
           if [ -n "$WORKER_URL" ] || [ -n "$APPS_SCRIPT_URL" ]; then
             if [ -n "$WA_SITE_URL" ]; then
-            # Default APP_URL to this repo's GitHub Pages URL when secret unset
-            if [ -z "$APP_URL" ]; then
-              APP_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
-              export APP_URL
-              echo "APP_URL defaulted to $APP_URL"
-            fi
-            npm run build:widget
+              # Default APP_URL to this repo's GitHub Pages URL when secret unset
+              if [ -z "$APP_URL" ]; then
+                APP_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
+                export APP_URL
+                echo "APP_URL defaulted to $APP_URL"
+              fi
+              npm run build:widget
             else
               echo "Skipping widget build (WA_SITE_URL not set)"
             fi
