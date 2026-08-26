@@ -10,10 +10,12 @@ import {
 import {
   createSessionToken,
   enrichMemberGroups,
+  ensureFreshMember,
   exchangeCode,
   fetchContactMe,
   isAllowedRedirectUri,
   parseSessionToken,
+  seedMemberCache,
 } from './auth.js';
 import {
   getAllContributors,
@@ -25,24 +27,30 @@ import {
   upsertDaySteps,
   writeAuditLog,
 } from './db.js';
+import { isActionRateLimited } from './rateLimit.js';
 
-function json(data, status = 200) {
+/**
+ * @typedef {Record<string, string>} CorsHeaders
+ * @typedef {{ corsHeaders: CorsHeaders, clientIp: string }} RequestContext
+ */
+
+function json(data, status, corsHeaders) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'no-store',
+      ...corsHeaders,
     },
   });
 }
 
-function jsonOk(obj) {
-  return json({ ok: true, ...obj });
+function jsonOk(obj, corsHeaders) {
+  return json({ ok: true, ...obj }, 200, corsHeaders);
 }
 
-function jsonErr(message, status = 400) {
-  return json({ ok: false, error: message, status }, status);
+function jsonErr(message, status, corsHeaders) {
+  return json({ ok: false, error: message, status }, status, corsHeaders);
 }
 
 function memberPayload(member, config) {
@@ -69,97 +77,124 @@ async function trackExtras(db, member, config) {
 async function resolveMember(body, config) {
   const token = body?.sessionToken;
   if (!token) return null;
-  return parseSessionToken(token, config.sessionSecret);
+  const member = await parseSessionToken(token, config.sessionSecret);
+  if (!member) return null;
+  return ensureFreshMember(member, config);
 }
 
-export async function handleAction(action, method, body, config, db) {
+function rateLimited(action, ctx) {
+  return isActionRateLimited(action, ctx.clientIp);
+}
+
+export async function handleAction(action, method, body, config, db, ctx) {
+  const { corsHeaders } = ctx;
+
   try {
     if (action === 'public_config' && method === 'GET') {
-      return jsonOk({
-        waClientId: config.waClientId,
-        waAccountId: config.waAccountId,
-        waSiteUrl: config.waSiteUrl,
-      });
+      return jsonOk(
+        {
+          waClientId: config.waClientId,
+          waAccountId: config.waAccountId,
+          waSiteUrl: config.waSiteUrl,
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'public_total' && method === 'GET') {
-      return jsonOk({ totalSteps: await getClubTotal(db) });
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
+      return jsonOk({ totalSteps: await getClubTotal(db) }, corsHeaders);
     }
 
     if (action === 'auth_exchange' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many sign-in attempts. Try again shortly.', 429, corsHeaders);
+      }
       const code = body?.code;
       const redirectUri = body?.redirect_uri;
-      if (!code || !redirectUri) return jsonErr('Missing code or redirect_uri', 400);
+      if (!code || !redirectUri) return jsonErr('Missing code or redirect_uri', 400, corsHeaders);
       if (!isAllowedRedirectUri(String(redirectUri), config)) {
-        return jsonErr('redirect_uri is not allowed', 400);
+        return jsonErr('redirect_uri is not allowed', 400, corsHeaders);
       }
       const token = await exchangeCode(code, redirectUri, config);
       let member = await fetchContactMe(token.access_token, config.waAccountId);
       member = await enrichMemberGroups(member, config);
+      seedMemberCache(member, config.memberRefreshTtlMs);
       const gate = assertActiveMember(member);
-      if (!gate.ok) return jsonErr(gate.error, 403);
+      if (!gate.ok) return jsonErr(gate.error, 403, corsHeaders);
       const sessionToken = await createSessionToken(member, config.sessionSecret);
-      return jsonOk({ sessionToken, member: memberPayload(member, config) });
+      return jsonOk({ sessionToken, member: memberPayload(member, config) }, corsHeaders);
     }
 
     if (action === 'leaderboard' && method === 'POST') {
       const member = await resolveMember(body, config);
-      if (!member) return jsonErr('Not signed in', 401);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertActiveMember(member);
-      if (!gate.ok) return jsonErr(gate.error, 403);
+      if (!gate.ok) return jsonErr(gate.error, 403, corsHeaders);
       const totals = await getLeaderboardTotals(db, config.leaderboardLimit);
-      return jsonOk({
-        member: memberPayload(member, config),
-        totals,
-        ...(await trackExtras(db, member, config)),
-      });
+      return jsonOk(
+        {
+          member: memberPayload(member, config),
+          totals,
+          ...(await trackExtras(db, member, config)),
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'me' && method === 'POST') {
       const member = await resolveMember(body, config);
-      if (!member) return jsonErr('Not signed in', 401);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertAuthorizedMember(
         member,
         config.allowedGroupIds,
         config.allowedGroupNames,
       );
-      if (!gate.ok) return jsonErr(gate.error, 403);
+      if (!gate.ok) return jsonErr(gate.error, 403, corsHeaders);
 
       const today = todayKey();
       const dateCheck = validateDateKey(body?.date || today, today);
-      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400);
+      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
 
       const daySteps = await getDaySteps(db, member.contactId, dateCheck.date);
       const history = await getHistoryForContact(db, member.contactId);
 
-      return jsonOk({
-        member: memberPayload(member, config),
-        today,
-        selectedDate: dateCheck.date,
-        daySteps,
-        todaySteps: await getDaySteps(db, member.contactId, today),
-        history,
-        canTrack: true,
-        personalTotal: await getPersonalTotal(db, member.contactId),
-      });
+      return jsonOk(
+        {
+          member: memberPayload(member, config),
+          today,
+          selectedDate: dateCheck.date,
+          daySteps,
+          todaySteps: await getDaySteps(db, member.contactId, today),
+          history,
+          canTrack: true,
+          personalTotal: await getPersonalTotal(db, member.contactId),
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'log' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many save attempts. Try again shortly.', 429, corsHeaders);
+      }
       const member = await resolveMember(body, config);
-      if (!member) return jsonErr('Not signed in', 401);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertAuthorizedMember(
         member,
         config.allowedGroupIds,
         config.allowedGroupNames,
       );
-      if (!gate.ok) return jsonErr(gate.error, 403);
+      if (!gate.ok) return jsonErr(gate.error, 403, corsHeaders);
 
       const validated = validateSteps(body?.steps);
-      if (!validated.ok) return jsonErr(validated.error, 400);
+      if (!validated.ok) return jsonErr(validated.error, 400, corsHeaders);
 
       const today = todayKey();
       const dateCheck = validateDateKey(body?.date || today, today);
-      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400);
+      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
 
       const updated_at = new Date().toISOString();
       await upsertDaySteps(db, {
@@ -174,38 +209,44 @@ export async function handleAction(action, method, body, config, db) {
       });
 
       const totals = await getLeaderboardTotals(db, config.leaderboardLimit);
-      return jsonOk({
-        date: dateCheck.date,
-        today,
-        steps: validated.steps,
-        totals,
-        history: await getHistoryForContact(db, member.contactId),
-        canTrack: true,
-        personalTotal: await getPersonalTotal(db, member.contactId),
-      });
+      return jsonOk(
+        {
+          date: dateCheck.date,
+          today,
+          steps: validated.steps,
+          totals,
+          history: await getHistoryForContact(db, member.contactId),
+          canTrack: true,
+          personalTotal: await getPersonalTotal(db, member.contactId),
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'admin_set_steps' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many admin edits. Try again shortly.', 429, corsHeaders);
+      }
       const member = await resolveMember(body, config);
-      if (!member) return jsonErr('Not signed in', 401);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const adminGate = assertAdminMember(
         member,
         config.adminGroupIds,
         config.adminGroupNames,
       );
-      if (!adminGate.ok) return jsonErr(adminGate.error, 403);
+      if (!adminGate.ok) return jsonErr(adminGate.error, 403, corsHeaders);
 
       const contactId = body?.contactId;
       if (contactId === undefined || contactId === null || contactId === '') {
-        return jsonErr('Missing contactId', 400);
+        return jsonErr('Missing contactId', 400, corsHeaders);
       }
 
       const validated = validateSteps(body?.steps);
-      if (!validated.ok) return jsonErr(validated.error, 400);
+      if (!validated.ok) return jsonErr(validated.error, 400, corsHeaders);
 
       const today = todayKey();
       const dateCheck = validateDateKey(body?.date || today, today);
-      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400);
+      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
 
       const previousSteps = await getDaySteps(db, contactId, dateCheck.date);
       const updated_at = new Date().toISOString();
@@ -230,37 +271,44 @@ export async function handleAction(action, method, body, config, db) {
         actor_name: member.name,
       });
 
-      return jsonOk({
-        date: dateCheck.date,
-        contactId: String(contactId),
-        steps: validated.steps,
-        previousSteps,
-        totals: await getLeaderboardTotals(db, config.leaderboardLimit),
-        member: memberPayload(member, config),
-      });
+      return jsonOk(
+        {
+          date: dateCheck.date,
+          contactId: String(contactId),
+          steps: validated.steps,
+          previousSteps,
+          totals: await getLeaderboardTotals(db, config.leaderboardLimit),
+          member: memberPayload(member, config),
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'admin_contributors' && method === 'POST') {
       const member = await resolveMember(body, config);
-      if (!member) return jsonErr('Not signed in', 401);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const adminGate = assertAdminMember(
         member,
         config.adminGroupIds,
         config.adminGroupNames,
       );
-      if (!adminGate.ok) return jsonErr(adminGate.error, 403);
-      return jsonOk({
-        member: memberPayload(member, config),
-        contributors: await getAllContributors(db),
-      });
+      if (!adminGate.ok) return jsonErr(adminGate.error, 403, corsHeaders);
+      return jsonOk(
+        {
+          member: memberPayload(member, config),
+          contributors: await getAllContributors(db),
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'logout' && method === 'POST') {
-      return jsonOk({});
+      return jsonOk({}, corsHeaders);
     }
 
-    return jsonErr('Unknown action', 404);
+    return jsonErr('Unknown action', 404, corsHeaders);
   } catch (err) {
-    return jsonErr(String(err?.message || err), 500);
+    console.error('handleAction error', action, err);
+    return jsonErr('Internal server error', 500, corsHeaders);
   }
 }

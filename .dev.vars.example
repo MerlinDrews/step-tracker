@@ -8,3 +8,5 @@ FRONTEND_ORIGIN=http://localhost:8787
 WA_API_KEY=
 ALLOWED_GROUP_NAMES=Step Challenge
 ADMIN_GROUP_NAMES=Board
+# Seconds between WA Admin API membership refreshes per member (default 900 = 15 min)
+MEMBER_REFRESH_TTL_SEC=900

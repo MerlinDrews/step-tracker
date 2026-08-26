@@ -130,16 +130,6 @@ export function createProdApi(config) {
 
     async completeOAuthFromRedirect() {
       const q = new URLSearchParams(window.location.search);
-      const loginCode = q.get('login_code');
-      if (loginCode) {
-        q.delete('login_code');
-        const clean = `${window.location.pathname}${q.toString() ? `?${q}` : ''}${window.location.hash}`;
-        window.history.replaceState({}, '', clean);
-        const res = await postAction('auth_resume', { login_code: loginCode });
-        if (res.ok) sessionStorage.removeItem(AUTH_ATTEMPT_KEY);
-        return res;
-      }
-
       const code = q.get('code');
       if (!code) return { ok: true, skipped: true };
 

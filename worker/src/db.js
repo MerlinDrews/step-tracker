@@ -40,7 +40,6 @@ export async function getLeaderboardTotals(db, limit) {
 
   const contributors = (results || []).map((r) => ({
     contactId: String(r.contact_id),
-    email: String(r.email || ''),
     name: String(r.name || r.email || `Member ${r.contact_id}`),
     steps: Number(r.steps) || 0,
   }));

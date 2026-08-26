@@ -18,5 +18,7 @@ export function loadConfig(env) {
     adminGroupIds: parseAllowList(env.ADMIN_GROUP_IDS),
     adminGroupNames: parseAllowList(env.ADMIN_GROUP_NAMES),
     leaderboardLimit: Number(env.LEADERBOARD_LIMIT) || LEADERBOARD_LIMIT,
+    memberRefreshTtlMs:
+      Math.max(60, Number(env.MEMBER_REFRESH_TTL_SEC) || 900) * 1000,
   };
 }
