@@ -78,8 +78,20 @@ describe('createMockApi', () => {
     const logged = await api.logSteps(5000);
     expect(logged.ok).toBe(true);
     expect(logged.totals.totalSteps).toBe(6000);
+    expect(logged.personalTotal).toBe(6000);
+    expect(logged.canTrack).toBe(true);
     const pub = await api.getPublicTotal();
     expect(pub.totalSteps).toBe(6000);
+    expect(pub.personalTotal).toBeUndefined();
+  });
+
+  it('re-logging the same day replaces steps instead of adding', async () => {
+    await api.loginAs('alex');
+    await api.logSteps(1000, '2026-08-08');
+    const second = await api.logSteps(2500, '2026-08-08');
+    expect(second.ok).toBe(true);
+    expect(second.totals.totalSteps).toBe(2500);
+    expect(second.personalTotal).toBe(2500);
   });
 
   it('can edit a past day retroactively', async () => {
@@ -108,5 +120,27 @@ describe('createMockApi', () => {
     await api.logout();
     expect((await api.getMe()).ok).toBe(false);
     expect((await api.getLeaderboard()).ok).toBe(false);
+  });
+
+  it('allows admin to edit another participant', async () => {
+    await api.loginAs('admin');
+    const me = await api.getMe();
+    expect(me.ok).toBe(true);
+    expect(me.member.isAdmin).toBe(true);
+
+    const res = await api.adminSetSteps('1001', 7777, '2026-08-08');
+    expect(res.ok).toBe(true);
+    expect(res.steps).toBe(7777);
+    expect(res.totals.totalSteps).toBe(7777);
+
+    const pub = await api.getPublicTotal();
+    expect(pub.totalSteps).toBe(7777);
+  });
+
+  it('rejects admin edits from non-admin members', async () => {
+    await api.loginAs('alex');
+    const res = await api.adminSetSteps('1002', 100, '2026-08-08');
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/admin|configured/i);
   });
 });

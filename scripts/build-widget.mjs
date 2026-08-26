@@ -21,7 +21,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const MAX_CHARS = 2_048_000;
 
-const appsScriptUrl = process.env.APPS_SCRIPT_URL || 'REPLACE_WITH_APPS_SCRIPT_WEB_APP_URL';
+const apiUrl = (
+  process.env.WORKER_URL ||
+  process.env.APPS_SCRIPT_URL ||
+  'REPLACE_WITH_WORKER_OR_APPS_SCRIPT_URL'
+).replace(/\/$/, '');
 const waSiteUrl = process.env.WA_SITE_URL || 'https://www.aiwcduesseldorf.org';
 const appUrl = (process.env.APP_URL || '').replace(/\/$/, '');
 
@@ -30,9 +34,9 @@ await fs.mkdir(outdir, { recursive: true });
 
 /** Best-effort bake of public total at build time (WA page cannot fetch Apps Script). */
 let bakedTotal = null;
-if (!appsScriptUrl.includes('REPLACE_WITH')) {
+if (!apiUrl.includes('REPLACE_WITH')) {
   try {
-    const res = await fetch(`${appsScriptUrl.replace(/\/$/, '')}?action=public_total`, {
+    const res = await fetch(`${apiUrl}?action=public_total`, {
       redirect: 'follow',
     });
     const data = await res.json();

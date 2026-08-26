@@ -79,5 +79,16 @@ export function createLocalHttpApi() {
     async getLeaderboard() {
       return request('/leaderboard');
     },
+
+    async adminSetSteps(contactId, steps, date, profile = {}) {
+      return request('/admin/set-steps', {
+        method: 'POST',
+        body: { contactId, steps, date, ...profile },
+      });
+    },
+
+    async adminContributors() {
+      return request('/admin/contributors');
+    },
   };
 }

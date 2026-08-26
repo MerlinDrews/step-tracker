@@ -10,7 +10,7 @@ const OAUTH_REDIRECT_KEY = 'step-counter-oauth-redirect';
  * @param {Record<string, unknown>} config
  */
 export function createProdApi(config) {
-  const base = String(config.APPS_SCRIPT_URL || '').replace(/\/$/, '');
+  const base = String(config.WORKER_URL || config.APPS_SCRIPT_URL || '').replace(/\/$/, '');
 
   function pageRedirectUri() {
     return window.location.href.split('?')[0].split('#')[0];
@@ -30,7 +30,7 @@ export function createProdApi(config) {
 
   async function fetchGet(action) {
     if (!base) {
-      return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
+      return { ok: false, error: 'WORKER_URL (or APPS_SCRIPT_URL) is not configured' };
     }
     try {
       const res = await fetch(buildUrl(action).toString(), {
@@ -52,7 +52,7 @@ export function createProdApi(config) {
 
   async function postAction(action, body = {}) {
     if (!base) {
-      return { ok: false, error: 'APPS_SCRIPT_URL is not configured' };
+      return { ok: false, error: 'WORKER_URL (or APPS_SCRIPT_URL) is not configured' };
     }
     const token = sessionStorage.getItem(TOKEN_KEY);
     try {
@@ -185,6 +185,19 @@ export function createProdApi(config) {
 
     async getLeaderboard() {
       return postAction('leaderboard');
+    },
+
+    async adminSetSteps(contactId, steps, date, profile = {}) {
+      return postAction('admin_set_steps', {
+        contactId,
+        steps,
+        date,
+        ...profile,
+      });
+    },
+
+    async adminContributors() {
+      return postAction('admin_contributors');
     },
   };
 }

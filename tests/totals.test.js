@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateTotals, findStepsForDate, historyForContact } from '../src/domain/totals.js';
+import { aggregateTotals, dedupeDailyRows, findStepsForDate, historyForContact, leaderboardTotals, personalTotal } from '../src/domain/totals.js';
 
 describe('aggregateTotals', () => {
   it('returns zeros for empty', () => {
@@ -17,6 +17,29 @@ describe('aggregateTotals', () => {
     expect(result.contributors.map((c) => c.name)).toEqual(['Jordan', 'Alex']);
     expect(result.contributors[0].steps).toBe(4000);
     expect(result.contributors[1].steps).toBe(3000);
+  });
+
+  it('dedupes same person/day before summing (latest updated_at wins)', () => {
+    const rows = [
+      { date: '2026-08-09', contactId: '1', steps: 1000, updated_at: 't1' },
+      { date: '2026-08-09', contactId: '1', steps: 9999, updated_at: 't2' },
+      { date: '2026-08-08', contactId: '1', steps: 500, updated_at: 't1' },
+    ];
+    expect(aggregateTotals(rows).totalSteps).toBe(10499);
+    expect(personalTotal(rows, '1')).toBe(10499);
+  });
+
+  it('leaderboardTotals returns top N and participant count', () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({
+      contactId: String(i + 1),
+      name: `P${i + 1}`,
+      steps: (12 - i) * 1000,
+    }));
+    const board = leaderboardTotals(rows, 10);
+    expect(board.contributors).toHaveLength(10);
+    expect(board.participantCount).toBe(12);
+    expect(board.leaderboardLimit).toBe(10);
+    expect(board.contributors[0].steps).toBe(12000);
   });
 });
 

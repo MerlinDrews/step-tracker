@@ -1,14 +1,45 @@
+/** Max ranks shown on the leaderboard. */
+export const LEADERBOARD_LIMIT = 10;
+
+/**
+ * Collapse duplicate (date, contactId) rows — keeps the latest updated_at.
+ * Defensive when imports or legacy Sheet data contain duplicates.
+ */
+export function dedupeDailyRows(rows) {
+  /** @type {Map<string, typeof rows[0]>} */
+  const byKey = new Map();
+  /** @type {typeof rows} */
+  const passthrough = [];
+  for (const row of rows) {
+    if (!row.date) {
+      passthrough.push(row);
+      continue;
+    }
+    const key = `${row.date}\0${String(row.contactId)}`;
+    const existing = byKey.get(key);
+    if (
+      !existing ||
+      String(row.updated_at || '') >= String(existing.updated_at || '')
+    ) {
+      byKey.set(key, row);
+    }
+  }
+  return [...byKey.values(), ...passthrough];
+}
+
 /**
  * Aggregate all-time cumulative totals from daily rows.
+ * Duplicate rows for the same person/day count once (latest updated_at wins).
  *
- * @param {Array<{contactId: string|number, name?: string, email?: string, steps: number}>} rows
+ * @param {Array<{date?: string, contactId: string|number, name?: string, email?: string, steps: number, updated_at?: string}>} rows
  * @returns {{ totalSteps: number, contributors: Array<{ contactId: string, name: string, email: string, steps: number }> }}
  */
 export function aggregateTotals(rows) {
+  const deduped = dedupeDailyRows(rows);
   /** @type {Map<string, { contactId: string, name: string, email: string, steps: number }>} */
   const byPerson = new Map();
 
-  for (const row of rows) {
+  for (const row of deduped) {
     const id = String(row.contactId);
     const steps = Number(row.steps) || 0;
     const existing = byPerson.get(id);
@@ -34,6 +65,34 @@ export function aggregateTotals(rows) {
   const totalSteps = contributors.reduce((sum, c) => sum + c.steps, 0);
 
   return { totalSteps, contributors };
+}
+
+/**
+ * All-time step total for one participant.
+ */
+export function personalTotal(rows, contactId) {
+  const id = String(contactId);
+  return aggregateTotals(rows.filter((r) => String(r.contactId) === id)).totalSteps;
+}
+
+/**
+ * Top N contributors by cumulative steps (default {@link LEADERBOARD_LIMIT}).
+ */
+export function topContributors(contributors, limit = LEADERBOARD_LIMIT) {
+  return contributors.slice(0, Math.max(0, limit));
+}
+
+/**
+ * Leaderboard payload: club total, top N ranks, and full participant count.
+ */
+export function leaderboardTotals(rows, limit = LEADERBOARD_LIMIT) {
+  const full = aggregateTotals(rows);
+  return {
+    totalSteps: full.totalSteps,
+    contributors: topContributors(full.contributors, limit),
+    participantCount: full.contributors.length,
+    leaderboardLimit: limit,
+  };
 }
 
 /**

@@ -9,7 +9,8 @@ window.STEP_COUNTER_CONFIG = {
   PART: 'all',
   /** True only in the WA launcher widget build (links out to APP_URL). */
   EMBEDDED: false,
-  /** Public Apps Script web app URL (prod only). */
+  /** Cloudflare Worker URL (preferred). Legacy Apps Script URL still supported. */
+  WORKER_URL: '',
   APPS_SCRIPT_URL: '',
   /** Club Wild Apricot site origin, e.g. https://www.aiwcduesseldorf.org */
   WA_SITE_URL: '',

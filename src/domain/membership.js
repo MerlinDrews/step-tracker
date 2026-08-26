@@ -105,3 +105,33 @@ export function assertAuthorizedMember(member, allowedIds = [], allowedNames = [
   if (!active.ok) return active;
   return assertAllowedGroups(member?.groups, allowedIds, allowedNames);
 }
+
+/**
+ * Club admin gate — member must belong to at least one configured admin group.
+ * If both allow-lists are empty, no one is treated as admin (fail closed).
+ *
+ * @param {Member|null|undefined} member
+ * @param {string[]} adminIds
+ * @param {string[]} adminNames
+ */
+export function assertAdminMember(member, adminIds = [], adminNames = []) {
+  const active = assertActiveMember(member);
+  if (!active.ok) return active;
+  const ids = (adminIds || []).map(String);
+  const names = (adminNames || []).map((n) => n.toLowerCase());
+  if (ids.length === 0 && names.length === 0) {
+    return { ok: false, error: 'Admin access is not configured' };
+  }
+  const gate = assertAllowedGroups(member?.groups, ids, names);
+  if (gate.ok) return gate;
+  return { ok: false, error: 'Admin access required' };
+}
+
+/**
+ * @param {Member|null|undefined} member
+ * @param {string[]} adminIds
+ * @param {string[]} adminNames
+ */
+export function isAdminMember(member, adminIds = [], adminNames = []) {
+  return assertAdminMember(member, adminIds, adminNames).ok;
+}

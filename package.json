@@ -7,10 +7,15 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "serve": "node scripts/dev-server.mjs",
-    "build:widget": "node scripts/build-widget.mjs"
+    "build:widget": "node scripts/build-widget.mjs",
+    "worker:dev": "wrangler dev",
+    "worker:deploy": "wrangler deploy",
+    "worker:migrate": "wrangler d1 migrations apply step-counter --remote",
+    "worker:migrate:local": "wrangler d1 migrations apply step-counter --local"
   },
   "devDependencies": {
     "esbuild": "^0.25.8",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.28.0"
   }
 }

@@ -201,6 +201,21 @@ body {
   margin-bottom: 0.25rem;
 }
 
+.aiwcd-step-counter .hero__stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem 2.5rem;
+}
+
+.aiwcd-step-counter .hero__stat {
+  min-width: min(100%, 12rem);
+}
+
+.aiwcd-step-counter .hero__total--personal {
+  color: var(--teal);
+}
+
 .aiwcd-step-counter .hero__label {
   margin: 0;
   font-family: var(--display);
@@ -240,6 +255,18 @@ body {
   text-transform: uppercase;
 }
 
+.aiwcd-step-counter .panel--admin {
+  border-left-color: var(--wine);
+}
+
+.aiwcd-step-counter .admin__lede {
+  font-size: 0.92rem;
+}
+
+.aiwcd-step-counter select.field__input {
+  appearance: auto;
+}
+
 .aiwcd-step-counter .lede {
   margin: 0 0 1rem;
   color: var(--muted);
@@ -252,6 +279,12 @@ body {
   font-weight: 700;
   color: var(--navy);
   line-height: 1.2;
+}
+
+.aiwcd-step-counter .leaderboard__caption {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted);
 }
 
 .aiwcd-step-counter .leaderboard__empty {

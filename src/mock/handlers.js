@@ -1,10 +1,14 @@
 import {
   aggregateTotals,
   assertActiveMember,
+  assertAdminMember,
   assertAuthorizedMember,
   assertSession,
   findStepsForDate,
   historyForContact,
+  isAdminMember,
+  leaderboardTotals,
+  personalTotal,
   todayKey,
   upsertDailySteps,
   validateDateKey,
@@ -12,6 +16,8 @@ import {
 } from '../domain/index.js';
 import {
   listMockUsers,
+  MOCK_ADMIN_GROUP_IDS,
+  MOCK_ADMIN_GROUP_NAMES,
   MOCK_ALLOWED_GROUP_IDS,
   MOCK_ALLOWED_GROUP_NAMES,
   MOCK_MEMBERS,
@@ -28,6 +34,31 @@ import {
  * }} storage
  */
 export function createMockHandlers(storage) {
+  function memberPayload(member) {
+    if (!member) return member;
+    const payload = { ...member };
+    if (isAdminMember(member, MOCK_ADMIN_GROUP_IDS, MOCK_ADMIN_GROUP_NAMES)) {
+      payload.isAdmin = true;
+    }
+    return payload;
+  }
+
+  function canTrack(member) {
+    return assertAuthorizedMember(
+      member,
+      MOCK_ALLOWED_GROUP_IDS,
+      MOCK_ALLOWED_GROUP_NAMES,
+    ).ok;
+  }
+
+  function trackPayload(rows, member) {
+    if (!canTrack(member)) return {};
+    return {
+      canTrack: true,
+      personalTotal: personalTotal(rows, member.contactId),
+    };
+  }
+
   return {
     mode: 'local',
 
@@ -76,12 +107,14 @@ export function createMockHandlers(storage) {
 
       return {
         ok: true,
-        member: session.member,
+        member: memberPayload(session.member),
         today,
         selectedDate: dateCheck.date,
         daySteps,
         todaySteps: findStepsForDate(rows, session.member.contactId, today),
         history,
+        canTrack: true,
+        personalTotal: personalTotal(rows, session.member.contactId),
       };
     },
 
@@ -119,8 +152,10 @@ export function createMockHandlers(storage) {
         date: dateCheck.date,
         today,
         steps: validated.steps,
-        totals: aggregateTotals(next),
+        totals: leaderboardTotals(next),
         history: historyForContact(next, session.member.contactId),
+        canTrack: true,
+        personalTotal: personalTotal(next, session.member.contactId),
       };
     },
 
@@ -142,8 +177,78 @@ export function createMockHandlers(storage) {
       const rows = await storage.loadRows();
       return {
         ok: true,
-        member: session.member,
-        totals: aggregateTotals(rows),
+        member: memberPayload(session.member),
+        totals: leaderboardTotals(rows),
+        ...trackPayload(rows, session.member),
+      };
+    },
+
+    async adminSetSteps(contactId, stepsInput, dateInput, profile = {}) {
+      const session = await storage.getSession();
+      const sessionCheck = assertSession(session.token);
+      if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
+      const adminGate = assertAdminMember(
+        session.member,
+        MOCK_ADMIN_GROUP_IDS,
+        MOCK_ADMIN_GROUP_NAMES,
+      );
+      if (!adminGate.ok) return { ok: false, error: adminGate.error };
+
+      const validated = validateSteps(stepsInput);
+      if (!validated.ok) return validated;
+
+      const today = todayKey();
+      const dateCheck = validateDateKey(dateInput ?? today, today);
+      if (!dateCheck.ok) return dateCheck;
+
+      if (contactId === undefined || contactId === null || contactId === '') {
+        return { ok: false, error: 'Missing contactId' };
+      }
+
+      const rows = await storage.loadRows();
+      const previousSteps = findStepsForDate(rows, contactId, dateCheck.date);
+      const existingRow = rows.find(
+        (r) => r.date === dateCheck.date && String(r.contactId) === String(contactId),
+      );
+
+      const next = upsertDailySteps(rows, {
+        date: dateCheck.date,
+        contactId: String(contactId),
+        email: profile.email || existingRow?.email || '',
+        name: profile.name || existingRow?.name || `Member ${contactId}`,
+        steps: validated.steps,
+        updated_at: new Date().toISOString(),
+      });
+      await storage.saveRows(next);
+
+      return {
+        ok: true,
+        date: dateCheck.date,
+        contactId: String(contactId),
+        steps: validated.steps,
+        previousSteps,
+        totals: leaderboardTotals(next),
+        member: memberPayload(session.member),
+      };
+    },
+
+    async adminContributors() {
+      const session = await storage.getSession();
+      const sessionCheck = assertSession(session.token);
+      if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
+      const adminGate = assertAdminMember(
+        session.member,
+        MOCK_ADMIN_GROUP_IDS,
+        MOCK_ADMIN_GROUP_NAMES,
+      );
+      if (!adminGate.ok) return { ok: false, error: adminGate.error };
+
+      const rows = await storage.loadRows();
+      const totals = aggregateTotals(rows);
+      return {
+        ok: true,
+        member: memberPayload(session.member),
+        contributors: totals.contributors,
       };
     },
   };

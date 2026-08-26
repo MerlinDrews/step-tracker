@@ -139,6 +139,23 @@ var Domain = (function () {
     return assertAllowedGroups(member && member.groups, allowedIds, allowedNames);
   }
 
+  function assertAdminMember(member, adminIds, adminNames) {
+    var active = assertActiveMember(member);
+    if (!active.ok) return active;
+    adminIds = adminIds || [];
+    adminNames = adminNames || [];
+    if (adminIds.length === 0 && adminNames.length === 0) {
+      return { ok: false, error: 'Admin access is not configured' };
+    }
+    var gate = assertAllowedGroups(member && member.groups, adminIds, adminNames);
+    if (gate.ok) return gate;
+    return { ok: false, error: 'Admin access required' };
+  }
+
+  function isAdminMember(member, adminIds, adminNames) {
+    return assertAdminMember(member, adminIds, adminNames).ok;
+  }
+
   function upsertDailySteps(rows, entry) {
     var contactId = String(entry.contactId);
     var date = entry.date;
@@ -235,6 +252,8 @@ var Domain = (function () {
     parseGroupsFromFieldValues: parseGroupsFromFieldValues,
     assertAllowedGroups: assertAllowedGroups,
     assertAuthorizedMember: assertAuthorizedMember,
+    assertAdminMember: assertAdminMember,
+    isAdminMember: isAdminMember,
     upsertDailySteps: upsertDailySteps,
     aggregateTotals: aggregateTotals,
     findStepsForDate: findStepsForDate,

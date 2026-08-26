@@ -14,7 +14,7 @@ function getConfig() {
   return { MODE: 'local', ...base };
 }
 
-/** Local mode talks to the CSV-backed Node server. Prod uses Apps Script. */
+/** Local mode talks to the CSV-backed Node server. Prod uses Cloudflare Worker or Apps Script. */
 export function createApi() {
   const config = getConfig();
   if ((config.MODE || 'local') === 'local') {

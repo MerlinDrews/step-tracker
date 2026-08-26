@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   assertActiveMember,
+  assertAdminMember,
   assertAllowedGroups,
   assertAuthorizedMember,
   assertSession,
+  isAdminMember,
   parseAllowList,
   parseGroupsFromFieldValues,
 } from '../src/domain/membership.js';
@@ -63,5 +65,22 @@ describe('membership', () => {
     ]);
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/authorized member group/i);
+  });
+
+  it('fails closed when admin groups are not configured', () => {
+    const member = { contactId: '1', membershipStatus: 'Active', groups: [{ id: '8001', label: 'Board' }] };
+    expect(assertAdminMember(member, [], []).ok).toBe(false);
+    expect(isAdminMember(member, [], [])).toBe(false);
+  });
+
+  it('allows admin members in configured groups', () => {
+    const member = { contactId: '1', membershipStatus: 'Active', groups: [{ id: '8001', label: 'Board' }] };
+    expect(assertAdminMember(member, ['8001'], []).ok).toBe(true);
+    expect(isAdminMember(member, [], ['board'])).toBe(true);
+  });
+
+  it('rejects non-admin members for admin gate', () => {
+    const member = { contactId: '1', membershipStatus: 'Active', groups: [{ id: '9001', label: 'Step Challenge' }] };
+    expect(assertAdminMember(member, ['8001'], ['Board']).ok).toBe(false);
   });
 });

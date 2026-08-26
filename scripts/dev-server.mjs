@@ -121,6 +121,20 @@ async function handleApi(req, res, url) {
     const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 400;
     return sendJson(res, status, result);
   }
+  if (req.method === 'POST' && route === '/admin/set-steps') {
+    const body = await readJson(req);
+    const result = await handlers.adminSetSteps(body.contactId, body.steps, body.date, {
+      name: body.name,
+      email: body.email,
+    });
+    const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
+    return sendJson(res, status, result);
+  }
+  if (req.method === 'POST' && route === '/admin/contributors') {
+    const result = await handlers.adminContributors();
+    const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
+    return sendJson(res, status, result);
+  }
 
   return sendJson(res, 404, { ok: false, error: 'Unknown API route' });
 }

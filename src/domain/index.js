@@ -5,10 +5,22 @@ export {
   assertSession,
   assertAllowedGroups,
   assertAuthorizedMember,
+  assertAdminMember,
+  isAdminMember,
   parseGroupsFromFieldValues,
   parseAllowList,
 } from './membership.js';
 export { upsertDailySteps } from './upsert.js';
-export { aggregateTotals, findTodaySteps, findStepsForDate, historyForContact } from './totals.js';
+export {
+  LEADERBOARD_LIMIT,
+  aggregateTotals,
+  dedupeDailyRows,
+  findTodaySteps,
+  findStepsForDate,
+  historyForContact,
+  personalTotal,
+  topContributors,
+  leaderboardTotals,
+} from './totals.js';
 export { formatSteps, toLeaderboardView } from './format.js';
 export { csvToRows, rowsToCsv, CSV_HEADERS } from './csv.js';

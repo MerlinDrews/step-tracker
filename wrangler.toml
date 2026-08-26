@@ -1,0 +1,12 @@
+name = "step-counter"
+main = "worker/src/index.js"
+compatibility_date = "2024-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "step-counter"
+database_id = "49b7a485-f99b-4624-b86b-df1fa7c70913"
+migrations_dir = "worker/migrations"
+
+[vars]
+LEADERBOARD_LIMIT = "10"

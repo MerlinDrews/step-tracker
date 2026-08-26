@@ -1,5 +1,7 @@
 export const MOCK_ALLOWED_GROUP_IDS = ['9001'];
 export const MOCK_ALLOWED_GROUP_NAMES = ['Step Challenge'];
+export const MOCK_ADMIN_GROUP_IDS = ['8001'];
+export const MOCK_ADMIN_GROUP_NAMES = ['Board'];
 
 export const MOCK_MEMBERS = {
   alex: {
@@ -30,12 +32,23 @@ export const MOCK_MEMBERS = {
     membershipStatus: 'Active',
     groups: [{ id: '9002', label: 'Book Club' }],
   },
+  admin: {
+    contactId: '2002',
+    email: 'board@example.com',
+    name: 'Board Admin',
+    membershipStatus: 'Active',
+    groups: [
+      { id: '8001', label: 'Board' },
+      { id: '9001', label: 'Step Challenge' },
+    ],
+  },
 };
 
 export function listMockUsers() {
   return [
     { id: 'alex', label: 'Alex Rivera (in Step Challenge)' },
     { id: 'jordan', label: 'Jordan Lee (in Step Challenge)' },
+    { id: 'admin', label: 'Board Admin (admin + Walkathon)' },
     { id: 'outsider', label: 'Outside Member (wrong group)' },
     { id: 'inactive', label: 'Inactive Member (rejected)' },
   ];

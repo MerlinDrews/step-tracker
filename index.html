@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#003b5f" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; base-uri 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://www.aiwcduesseldorf.org data:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; form-action 'self'"
+      content="default-src 'self'; base-uri 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https://www.aiwcduesseldorf.org data:; connect-src 'self' https://*.workers.dev https://script.google.com https://script.googleusercontent.com; form-action 'self'"
     />
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
@@ -53,8 +53,16 @@
         </div>
 
         <section id="section-total" class="hero" aria-labelledby="total-heading">
-          <h1 id="total-heading" class="hero__label">Club total</h1>
-          <p id="total-steps" class="hero__total">0</p>
+          <div class="hero__stats">
+            <div class="hero__stat">
+              <h1 id="total-heading" class="hero__label">Club total</h1>
+              <p id="total-steps" class="hero__total">0</p>
+            </div>
+            <div id="personal-total-wrap" class="hero__stat" hidden>
+              <h2 id="personal-heading" class="hero__label">Your total</h2>
+              <p id="personal-steps" class="hero__total hero__total--personal">0</p>
+            </div>
+          </div>
         </section>
 
         <section id="section-track" class="panel" aria-labelledby="track-heading">
@@ -136,8 +144,48 @@
           </div>
 
           <div id="board-content" hidden>
+            <p id="leaderboard-caption" class="leaderboard__caption" hidden>Top 10 participants</p>
             <ol id="leaderboard" class="leaderboard"></ol>
           </div>
+        </section>
+
+        <section id="section-admin" class="panel panel--admin" aria-labelledby="admin-heading" hidden>
+          <h2 id="admin-heading" class="panel__title">Admin — edit participant steps</h2>
+          <p class="lede admin__lede">
+            For club admins only. Override a participant&rsquo;s daily step count when they need help logging.
+            You can also edit the Google Sheet directly; changes may take up to two minutes to appear here.
+          </p>
+
+          <label class="field" for="admin-participant">
+            <span class="field__label">Participant</span>
+            <select id="admin-participant" class="field__input"></select>
+          </label>
+
+          <label class="field" for="admin-date">
+            <span class="field__label">Date</span>
+            <input id="admin-date" class="field__input field__input--date" type="date" />
+          </label>
+
+          <label class="field" for="admin-steps">
+            <span class="field__label">Steps</span>
+            <input
+              id="admin-steps"
+              class="field__input"
+              type="number"
+              inputmode="numeric"
+              min="0"
+              max="100000"
+              step="1"
+              placeholder="e.g. 8432"
+            />
+          </label>
+
+          <button id="admin-save-btn" type="button" class="btn btn--secondary btn--block">
+            Save for participant
+          </button>
+
+          <p id="admin-form-error" class="msg msg--error" hidden></p>
+          <p id="admin-form-success" class="msg msg--ok" hidden></p>
         </section>
       </div>
 

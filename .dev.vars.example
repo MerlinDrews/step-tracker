@@ -1,0 +1,10 @@
+# Copy to .dev.vars for `npm run worker:dev` (never commit .dev.vars).
+WA_CLIENT_ID=
+WA_CLIENT_SECRET=
+WA_ACCOUNT_ID=
+SESSION_SECRET=
+WA_SITE_URL=https://www.aiwcduesseldorf.org
+FRONTEND_ORIGIN=http://localhost:8787
+WA_API_KEY=
+ALLOWED_GROUP_NAMES=Step Challenge
+ADMIN_GROUP_NAMES=Board

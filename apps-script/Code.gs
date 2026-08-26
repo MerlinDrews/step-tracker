@@ -17,6 +17,11 @@
  *   it only links out to FRONTEND_ORIGIN.
  *   ALLOWED_GROUP_IDS   optional; required for me/log (track). Leaderboard ignores these.
  *   ALLOWED_GROUP_NAMES optional; if both empty, any Active member may log steps.
+ *   ADMIN_GROUP_IDS     optional; WA group ids for step-challenge admins (manual edits).
+ *   ADMIN_GROUP_NAMES   optional; e.g. Board, Administrators (case-insensitive).
+ *
+ * Performance: totals are cached (CacheService); log/me upsert one sheet row instead of
+ * rewriting the whole tab. Optional time trigger: run installWarmCacheTrigger() once.
  *
  * Deploy as Web App: Execute as Me, Who has access: Anyone.
  *
@@ -24,6 +29,11 @@
  */
 
 var STEPS_HEADERS = ['date', 'contactId', 'email', 'name', 'steps', 'updated_at'];
+var ROWS_CACHE_KEY = 'steps_rows_v1';
+var TOTALS_CACHE_KEY = 'steps_totals_v1';
+var ROWS_CACHE_TTL = 60;
+var TOTALS_CACHE_TTL = 120;
+var ROWS_CACHE_MAX_BYTES = 90000;
 
 function doGet(e) {
   return handleRequest(e, 'GET');
@@ -79,6 +89,12 @@ function handleRequest(e, method) {
     }
     if (action === 'log' && method === 'POST') {
       return handleLog(e, body);
+    }
+    if (action === 'admin_set_steps' && method === 'POST') {
+      return handleAdminSetSteps(e, body);
+    }
+    if (action === 'admin_contributors' && method === 'POST') {
+      return handleAdminContributors(e, body);
     }
     if (action === 'logout' && method === 'POST') {
       return jsonOk({});
@@ -331,6 +347,31 @@ function allowedGroupConfig_() {
   };
 }
 
+function adminGroupConfig_() {
+  return {
+    ids: Domain.parseAllowList(prop('ADMIN_GROUP_IDS')),
+    names: Domain.parseAllowList(prop('ADMIN_GROUP_NAMES')),
+  };
+}
+
+function memberIsAdmin_(member) {
+  var cfg = adminGroupConfig_();
+  return Domain.isAdminMember(member, cfg.ids, cfg.names);
+}
+
+function assertAdmin_(member) {
+  var cfg = adminGroupConfig_();
+  return Domain.assertAdminMember(member, cfg.ids, cfg.names);
+}
+
+function memberPayload_(member) {
+  var payload = member;
+  if (member && memberIsAdmin_(member)) {
+    payload = Object.assign({}, member, { isAdmin: true });
+  }
+  return payload;
+}
+
 function authorizeMember_(member) {
   var cfg = allowedGroupConfig_();
   return Domain.assertAuthorizedMember(member, cfg.ids, cfg.names);
@@ -384,7 +425,7 @@ function handleLeaderboard(e, body) {
   if (!member) return jsonErr('Not signed in', 401);
   var gate = Domain.assertActiveMember(member);
   if (!gate.ok) return jsonErr(gate.error, 403);
-  return jsonOk({ totals: getTotalsFromSheet(), member: member });
+  return jsonOk({ totals: getTotalsFromSheet(), member: memberPayload_(member) });
 }
 
 function handleMe(e, body) {
@@ -402,7 +443,7 @@ function handleMe(e, body) {
   var history = Domain.historyForContact(rows, member.contactId);
   var daySteps = Domain.findStepsForDate(rows, member.contactId, dateCheck.date);
   return jsonOk({
-    member: member,
+    member: memberPayload_(member),
     today: today,
     selectedDate: dateCheck.date,
     daySteps: daySteps,
@@ -433,13 +474,80 @@ function handleLog(e, body) {
     steps: validated.steps,
     updated_at: new Date().toISOString(),
   });
-  writeStepsRows(rows);
+  upsertStepRowInSheet_(rows, dateCheck.date, member.contactId);
   return jsonOk({
     date: dateCheck.date,
     today: today,
     steps: validated.steps,
     totals: Domain.aggregateTotals(rows),
     history: Domain.historyForContact(rows, member.contactId),
+  });
+}
+
+/** Admin: set or update steps for any participant (by contactId + date). */
+function handleAdminSetSteps(e, body) {
+  body = body || {};
+  var member = resolveMember_(e, body);
+  if (!member) return jsonErr('Not signed in', 401);
+  var adminGate = assertAdmin_(member);
+  if (!adminGate.ok) return jsonErr(adminGate.error, 403);
+
+  var contactId = body.contactId;
+  if (contactId === undefined || contactId === null || contactId === '') {
+    return jsonErr('Missing contactId', 400);
+  }
+
+  var validated = Domain.validateSteps(body.steps);
+  if (!validated.ok) return jsonErr(validated.error, 400);
+
+  var today = Domain.todayKey();
+  var dateCheck = Domain.validateDateKey(body.date || today, today);
+  if (!dateCheck.ok) return jsonErr(dateCheck.error, 400);
+
+  var rows = readStepsRows();
+  var existing = Domain.findStepsForDate(rows, contactId, dateCheck.date);
+  var existingRow = null;
+  for (var i = 0; i < rows.length; i++) {
+    if (
+      rows[i].date === dateCheck.date &&
+      String(rows[i].contactId) === String(contactId)
+    ) {
+      existingRow = rows[i];
+      break;
+    }
+  }
+
+  var entry = {
+    date: dateCheck.date,
+    contactId: String(contactId),
+    email: body.email || (existingRow && existingRow.email) || '',
+    name: body.name || (existingRow && existingRow.name) || 'Member ' + contactId,
+    steps: validated.steps,
+    updated_at: new Date().toISOString(),
+  };
+  rows = Domain.upsertDailySteps(rows, entry);
+  upsertStepRowInSheet_(rows, dateCheck.date, entry.contactId);
+
+  return jsonOk({
+    date: dateCheck.date,
+    contactId: entry.contactId,
+    steps: validated.steps,
+    previousSteps: existing,
+    totals: Domain.aggregateTotals(rows),
+    member: memberPayload_(member),
+  });
+}
+
+/** Admin: list contributors for the participant picker. */
+function handleAdminContributors(e, body) {
+  var member = resolveMember_(e, body);
+  if (!member) return jsonErr('Not signed in', 401);
+  var adminGate = assertAdmin_(member);
+  if (!adminGate.ok) return jsonErr(adminGate.error, 403);
+  var totals = getTotalsFromSheet();
+  return jsonOk({
+    member: memberPayload_(member),
+    contributors: totals.contributors || [],
   });
 }
 
@@ -462,12 +570,55 @@ function getSheet_() {
   return sheet;
 }
 
+function stepsCache_() {
+  return CacheService.getScriptCache();
+}
+
+function invalidateStepsCache_() {
+  var cache = stepsCache_();
+  cache.remove(ROWS_CACHE_KEY);
+  cache.remove(TOTALS_CACHE_KEY);
+}
+
+function cacheRows_(rows) {
+  try {
+    var json = JSON.stringify(rows);
+    if (json.length <= ROWS_CACHE_MAX_BYTES) {
+      stepsCache_().put(ROWS_CACHE_KEY, json, ROWS_CACHE_TTL);
+    }
+  } catch (err) {
+    Logger.log('cacheRows_ skipped: ' + err);
+  }
+}
+
+function cacheTotals_(totals) {
+  try {
+    stepsCache_().put(TOTALS_CACHE_KEY, JSON.stringify(totals), TOTALS_CACHE_TTL);
+  } catch (err) {
+    Logger.log('cacheTotals_ skipped: ' + err);
+  }
+}
+
 function readStepsRows() {
+  var cache = stepsCache_();
+  var cached = cache.get(ROWS_CACHE_KEY);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (err) {
+      cache.remove(ROWS_CACHE_KEY);
+    }
+  }
+
   var sheet = getSheet_();
-  var values = sheet.getDataRange().getValues();
-  if (values.length < 2) return [];
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    cacheRows_([]);
+    return [];
+  }
+  var values = sheet.getRange(2, 1, lastRow, STEPS_HEADERS.length).getValues();
   var rows = [];
-  for (var i = 1; i < values.length; i++) {
+  for (var i = 0; i < values.length; i++) {
     var r = values[i];
     if (!r[0] && !r[1]) continue;
     rows.push({
@@ -479,22 +630,122 @@ function readStepsRows() {
       updated_at: String(r[5] || ''),
     });
   }
+  cacheRows_(rows);
   return rows;
 }
 
-function writeStepsRows(rows) {
-  var sheet = getSheet_();
-  sheet.clearContents();
-  var data = [STEPS_HEADERS];
-  for (var i = 0; i < rows.length; i++) {
-    var r = rows[i];
-    data.push([r.date, r.contactId, r.email, r.name, r.steps, r.updated_at]);
+/**
+ * Find 1-based sheet row for (date, contactId), or -1.
+ */
+function findStepSheetRow_(sheet, date, contactId) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  var keys = sheet.getRange(2, 1, lastRow, 2).getValues();
+  var id = String(contactId);
+  for (var i = 0; i < keys.length; i++) {
+    if (String(keys[i][0]) === date && String(keys[i][1]) === id) {
+      return i + 2;
+    }
   }
-  sheet.getRange(1, 1, data.length, STEPS_HEADERS.length).setValues(data);
+  return -1;
+}
+
+/**
+ * Write one logical row to the sheet (append or update). Caller holds merged rows in memory.
+ */
+function upsertStepRowInSheet_(rows, date, contactId) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var entry = null;
+    var id = String(contactId);
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].date === date && String(rows[i].contactId) === id) {
+        entry = rows[i];
+        break;
+      }
+    }
+    if (!entry) throw new Error('Row not found after upsert');
+
+    var sheet = getSheet_();
+    var rowData = [
+      entry.date,
+      entry.contactId,
+      entry.email || '',
+      entry.name || '',
+      entry.steps,
+      entry.updated_at || new Date().toISOString(),
+    ];
+    var rowIndex = findStepSheetRow_(sheet, date, contactId);
+    if (rowIndex >= 2) {
+      sheet.getRange(rowIndex, 1, rowIndex, STEPS_HEADERS.length).setValues([rowData]);
+    } else {
+      sheet.appendRow(rowData);
+    }
+    cacheRows_(rows);
+    cacheTotals_(Domain.aggregateTotals(rows));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** @deprecated Full rewrite — kept for one-time repair / import scripts only. */
+function writeStepsRows(rows) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var sheet = getSheet_();
+    sheet.clearContents();
+    var data = [STEPS_HEADERS];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      data.push([r.date, r.contactId, r.email, r.name, r.steps, r.updated_at]);
+    }
+    if (data.length > 1) {
+      sheet.getRange(1, 1, data.length, STEPS_HEADERS.length).setValues(data);
+    } else {
+      sheet.getRange(1, 1, 1, STEPS_HEADERS.length).setValues([STEPS_HEADERS]);
+    }
+    invalidateStepsCache_();
+    cacheRows_(rows);
+    cacheTotals_(Domain.aggregateTotals(rows));
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getTotalsFromSheet() {
-  return Domain.aggregateTotals(readStepsRows());
+  var cache = stepsCache_();
+  var cached = cache.get(TOTALS_CACHE_KEY);
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (err) {
+      cache.remove(TOTALS_CACHE_KEY);
+    }
+  }
+  var totals = Domain.aggregateTotals(readStepsRows());
+  cacheTotals_(totals);
+  return totals;
+}
+
+/** Run every 5 min via time trigger to reduce cold-start pain on public_total. */
+function warmPublicTotalCache() {
+  getTotalsFromSheet();
+}
+
+/**
+ * One-time setup: Apps Script editor → Run → grant permissions.
+ * Creates a 5-minute trigger for warmPublicTotalCache.
+ */
+function installWarmCacheTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'warmPublicTotalCache') {
+      return;
+    }
+  }
+  ScriptApp.newTrigger('warmPublicTotalCache').timeBased().everyMinutes(5).create();
 }
 
 function jsonOk(obj) {

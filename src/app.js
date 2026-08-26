@@ -37,6 +37,13 @@ let viewMonth = (() => {
   const d = parseDateKey(selectedDate) || new Date();
   return { year: d.getFullYear(), monthIndex: d.getMonth() };
 })();
+/** @type {number|null} */
+let clubTotalSteps = null;
+/** @type {boolean} */
+let isAdmin = false;
+
+/** @type {Array<{ contactId: string, name: string, email?: string, steps: number }>} */
+let adminContributors = [];
 
 function getConfig() {
   return { ...(window.STEP_COUNTER_CONFIG || {}), ...bootConfig };
@@ -118,6 +125,9 @@ const els = {
   formErrorBoard: $('form-error-board'),
   formSuccess: $('form-success'),
   totalSteps: $('total-steps'),
+  personalTotalWrap: $('personal-total-wrap'),
+  personalSteps: $('personal-steps'),
+  leaderboardCaption: $('leaderboard-caption'),
   boardGate: $('board-gate'),
   boardGateLede: $('board-gate-lede'),
   boardGateAction: $('board-gate-action'),
@@ -130,6 +140,13 @@ const els = {
   calGrid: $('cal-grid'),
   appLoading: $('app-loading'),
   appLoadingText: $('app-loading-text'),
+  sectionAdmin: $('section-admin'),
+  adminParticipant: $('admin-participant'),
+  adminDate: $('admin-date'),
+  adminSteps: $('admin-steps'),
+  adminSaveBtn: $('admin-save-btn'),
+  adminFormError: $('admin-form-error'),
+  adminFormSuccess: $('admin-form-success'),
 };
 
 function clubLoginUrl() {
@@ -256,14 +273,29 @@ function showPartSections() {
   }
 }
 
-function renderPublicTotal(totalSteps) {
-  if (!els.totalSteps) return;
-  els.totalSteps.textContent = formatSteps(totalSteps);
+function renderPublicTotal(totalSteps, personalSteps = null) {
+  if (totalSteps !== null && totalSteps !== undefined) {
+    clubTotalSteps = totalSteps;
+    if (els.totalSteps) els.totalSteps.textContent = formatSteps(totalSteps);
+  }
+  if (!els.personalTotalWrap || !els.personalSteps) return;
+  if (personalSteps === null || personalSteps === undefined) {
+    els.personalTotalWrap.hidden = true;
+    return;
+  }
+  els.personalSteps.textContent = formatSteps(personalSteps);
+  els.personalTotalWrap.hidden = false;
 }
 
 function renderLeaderboard(totals) {
   if (!els.leaderboard) return;
   const view = toLeaderboardView(totals || { totalSteps: 0, contributors: [] });
+  if (els.leaderboardCaption) {
+    els.leaderboardCaption.hidden = !view.hasMoreParticipants;
+    if (view.hasMoreParticipants) {
+      els.leaderboardCaption.textContent = `Top ${view.leaderboardLimit} of ${view.participantCount} participants`;
+    }
+  }
   if (!view.rows.length) {
     els.leaderboard.innerHTML =
       '<li class="leaderboard__empty">No recorded steps yet</li>';
@@ -401,6 +433,103 @@ function showBoardContent(totals) {
   if (els.boardContent) els.boardContent.hidden = false;
   setMessage(els.formErrorBoard, '');
   renderLeaderboard(totals);
+}
+
+function maybeShowAdmin(member, contributors) {
+  isAdmin = Boolean(member?.isAdmin);
+  if (!isAdmin || !els.sectionAdmin) {
+    if (els.sectionAdmin) els.sectionAdmin.hidden = true;
+    return;
+  }
+
+  els.sectionAdmin.hidden = false;
+  if (Array.isArray(contributors) && contributors.length) {
+    adminContributors = contributors;
+  }
+  populateAdminParticipants();
+  if (els.adminDate) {
+    els.adminDate.value = selectedDate;
+    els.adminDate.max = todayKey();
+  }
+}
+
+async function refreshAdminContributors() {
+  if (!isAdmin || typeof api.adminContributors !== 'function') return;
+  const res = await api.adminContributors();
+  if (!res.ok) return;
+  adminContributors = res.contributors || [];
+  populateAdminParticipants();
+}
+
+function populateAdminParticipants() {
+  if (!els.adminParticipant) return;
+  const options = adminContributors.map(
+    (c) =>
+      `<option value="${escapeHtml(c.contactId)}">${escapeHtml(c.name || c.email || c.contactId)} (${formatSteps(c.steps)} total)</option>`,
+  );
+  els.adminParticipant.innerHTML =
+    options.length > 0
+      ? options.join('')
+      : '<option value="">No participants yet</option>';
+}
+
+function setupAdminPanel() {
+  if (!els.adminSaveBtn || typeof api.adminSetSteps !== 'function') return;
+
+  els.adminSaveBtn.addEventListener('click', async () => {
+    setMessage(els.adminFormError, '');
+    setMessage(els.adminFormSuccess, '');
+
+    const contactId = els.adminParticipant?.value;
+    if (!contactId) {
+      setMessage(els.adminFormError, 'Choose a participant');
+      return;
+    }
+
+    const validated = validateSteps(els.adminSteps?.value);
+    if (!validated.ok) {
+      setMessage(els.adminFormError, validated.error);
+      return;
+    }
+
+    const date = els.adminDate?.value || todayKey();
+    const contributor = adminContributors.find((c) => String(c.contactId) === String(contactId));
+
+    els.adminSaveBtn.disabled = true;
+    setLoading(true, 'Saving admin edit…');
+    try {
+      const res = await api.adminSetSteps(contactId, validated.steps, date, {
+        name: contributor?.name,
+        email: contributor?.email,
+      });
+      if (!res.ok) {
+        setMessage(els.adminFormError, res.error);
+        return;
+      }
+      setMessage(
+        els.adminFormSuccess,
+        `Saved ${formatSteps(res.steps)} steps for ${contributor?.name || contactId} on ${formatDisplayDate(date)}`,
+      );
+      if (res.totals) {
+        renderPublicTotal(res.totals.totalSteps);
+        if (part === 'all' || part === 'leaderboard') {
+          showBoardContent(res.totals);
+        }
+        adminContributors = res.totals.contributors || adminContributors;
+        populateAdminParticipants();
+      } else {
+        await refreshAdminContributors();
+        if (part === 'all' || part === 'total') await initTotal();
+        if (part === 'all' || part === 'leaderboard') {
+          const board = await api.getLeaderboard();
+          if (board.ok) showBoardContent(board.totals);
+        }
+      }
+    } finally {
+      els.adminSaveBtn.disabled = false;
+      setLoading(false);
+    }
+  });
 }
 
 async function selectDate(dateKey) {
@@ -583,7 +712,7 @@ function setupForm() {
       renderCalendar();
       // Keep club total + leaderboard in sync with the save response (or refetch).
       if (res.totals) {
-        renderPublicTotal(res.totals.totalSteps);
+        renderPublicTotal(res.totals.totalSteps, res.personalTotal);
         if (part === 'all' || part === 'leaderboard') {
           showBoardContent(res.totals);
         }
@@ -619,7 +748,7 @@ function maybeAutoConnect(result) {
   }
 
   const config = getConfig();
-  if (!config.APPS_SCRIPT_URL) return false;
+  if (!config.APPS_SCRIPT_URL && !config.WORKER_URL) return false;
   if (api.hasSession()) return false;
   if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
 
@@ -651,6 +780,9 @@ async function initLeaderboard() {
 
   if (board.ok) {
     showBoardContent(board.totals);
+    maybeShowAdmin(board.member, board.totals?.contributors);
+    if (board.member?.isAdmin) refreshAdminContributors();
+    renderPublicTotal(board.totals.totalSteps, board.canTrack ? board.personalTotal : null);
   } else {
     const notSignedIn = /not signed in/i.test(board.error || '');
     showBoardGate({
@@ -680,6 +812,11 @@ async function initTrack() {
     applyDaySteps(me.daySteps);
     updateFormLabels();
     renderCalendar();
+    maybeShowAdmin(me.member);
+    if (me.member?.isAdmin) refreshAdminContributors();
+    if (me.canTrack && me.personalTotal !== undefined) {
+      renderPublicTotal(clubTotalSteps ?? me.personalTotal, me.personalTotal);
+    }
   } else {
     const groupDenied = /authorized member group/i.test(me.error || '');
     showTrackCta({
@@ -697,7 +834,7 @@ async function maybeStartProdLogin() {
   if (api.mode !== 'prod') return false;
   if (api.hasSession()) return false;
   if (authRedirectStarted || sessionStorage.getItem(AUTH_ATTEMPT_KEY)) return false;
-  if (!getConfig().APPS_SCRIPT_URL) return false;
+  if (!getConfig().WORKER_URL && !getConfig().APPS_SCRIPT_URL) return false;
 
   authRedirectStarted = true;
   sessionStorage.setItem(AUTH_ATTEMPT_KEY, '1');
@@ -726,6 +863,7 @@ async function init() {
   setupAuthUi();
   setupCalendar();
   setupForm();
+  setupAdminPanel();
 
   // Hide auth-gated panels until we know the session state (stops Connect flash).
   if (api.mode === 'prod') {
