@@ -21,4 +21,22 @@ describe('format', () => {
     expect(view.hasMoreParticipants).toBe(true);
     expect(view.participantCount).toBe(15);
   });
+
+  it('never renders more than the leaderboard limit even if API sends extra rows', () => {
+    const contributors = Array.from({ length: 15 }, (_, i) => ({
+      contactId: String(i + 1),
+      name: `P${i + 1}`,
+      steps: (15 - i) * 1000,
+    }));
+    const view = toLeaderboardView({
+      totalSteps: 120000,
+      contributors,
+      participantCount: 15,
+      leaderboardLimit: 10,
+    });
+    expect(view.rows).toHaveLength(10);
+    expect(view.rows[0].name).toBe('P1');
+    expect(view.rows[9].name).toBe('P10');
+    expect(view.hasMoreParticipants).toBe(true);
+  });
 });

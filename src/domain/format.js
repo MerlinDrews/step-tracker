@@ -1,3 +1,5 @@
+import { LEADERBOARD_LIMIT } from './totals.js';
+
 export function formatSteps(n) {
   const num = Number(n) || 0;
   return num.toLocaleString('en-US');
@@ -9,7 +11,7 @@ export function formatSteps(n) {
  * @param {{ limit?: number }} [opts]
  */
 export function toLeaderboardView(totals, opts = {}) {
-  const limit = opts.limit ?? totals.leaderboardLimit ?? 10;
+  const limit = opts.limit ?? totals.leaderboardLimit ?? LEADERBOARD_LIMIT;
   const contributors = totals.contributors || [];
   const participantCount = totals.participantCount ?? contributors.length;
   const rows = contributors.slice(0, limit).map((c, i) => ({
