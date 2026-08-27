@@ -68,7 +68,7 @@ Open http://localhost:4173
 
 ## Production deploy (summary)
 
-Push to `main` runs CI: tests → Worker (migrations + deploy) → GitHub Pages.
+Push to `main` runs CI: tests → Worker (migrations + deploy) → GitHub Pages. Pull requests run unit tests only (`.github/workflows/test.yml`).
 
 **GitHub Actions secrets**
 
