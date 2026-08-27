@@ -4,13 +4,14 @@ import {
   assertAdminMember,
   assertAuthorizedMember,
   assertSession,
+  clientMemberView,
   findStepsForDate,
   historyForContact,
-  isAdminMember,
   leaderboardTotals,
   personalTotal,
   resolveNameParts,
   todayKey,
+  toAdminContributors,
   uniqueDisplayNames,
   upsertDailySteps,
   validateDateKey,
@@ -38,13 +39,10 @@ import {
  */
 export function createMockHandlers(storage) {
   function memberPayload(member) {
-    if (!member) return member;
-    const { lastName: _last, ...rest } = member;
-    const payload = { ...rest };
-    if (isAdminMember(member, MOCK_ADMIN_GROUP_IDS, MOCK_ADMIN_GROUP_NAMES)) {
-      payload.isAdmin = true;
-    }
-    return payload;
+    return clientMemberView(member, {
+      adminGroupIds: MOCK_ADMIN_GROUP_IDS,
+      adminGroupNames: MOCK_ADMIN_GROUP_NAMES,
+    });
   }
 
   function peopleFromRows(rows, extra) {
@@ -369,7 +367,7 @@ export function createMockHandlers(storage) {
       return {
         ok: true,
         member: memberPayload(session.member),
-        contributors: withPublicNames(totals.contributors),
+        contributors: toAdminContributors(withPublicNames(totals.contributors)),
       };
     },
   };

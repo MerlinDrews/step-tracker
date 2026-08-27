@@ -5,9 +5,11 @@ import {
   assertAllowedGroups,
   assertAuthorizedMember,
   assertSession,
+  clientMemberView,
   isAdminMember,
   parseAllowList,
   parseGroupsFromFieldValues,
+  toAdminContributors,
 } from '../src/domain/membership.js';
 
 describe('membership', () => {
@@ -82,5 +84,30 @@ describe('membership', () => {
   it('rejects non-admin members for admin gate', () => {
     const member = { contactId: '1', membershipStatus: 'Active', groups: [{ id: '9001', label: 'Step Challenge' }] };
     expect(assertAdminMember(member, ['8001'], ['Board']).ok).toBe(false);
+  });
+
+  it('clientMemberView returns only public name and optional admin flag', () => {
+    const member = {
+      contactId: '1',
+      email: 'alex@example.com',
+      membershipStatus: 'Active',
+      groups: [{ id: '9001', label: 'Step Challenge' }],
+      name: 'Alex R.',
+    };
+    expect(clientMemberView(member, { adminGroupIds: ['8001'] })).toEqual({ name: 'Alex R.' });
+    expect(
+      clientMemberView(
+        { ...member, groups: [{ id: '8001', label: 'Board' }] },
+        { adminGroupIds: ['8001'] },
+      ),
+    ).toEqual({ name: 'Alex R.', isAdmin: true });
+  });
+
+  it('toAdminContributors omits email and name parts', () => {
+    expect(
+      toAdminContributors([
+        { contactId: '1', name: 'Alex R.', email: 'a@x', steps: 10, firstName: 'Alex' },
+      ]),
+    ).toEqual([{ contactId: '1', name: 'Alex R.', steps: 10 }]);
   });
 });

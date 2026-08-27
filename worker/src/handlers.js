@@ -2,9 +2,10 @@ import {
   assertActiveMember,
   assertAdminMember,
   assertAuthorizedMember,
-  isAdminMember,
+  clientMemberView,
   resolveNameParts,
   todayKey,
+  toAdminContributors,
   uniqueDisplayNames,
   validateDateKey,
   validateSteps,
@@ -58,16 +59,12 @@ function jsonErr(message, status, corsHeaders) {
   return json({ ok: false, error: message, status }, status, corsHeaders);
 }
 
-/** Client-facing member object — never includes lastName. */
+/** Client-facing member object — display name and admin flag only. */
 function memberPayload(member, config) {
-  if (!member) return member;
-  const { lastName: _last, firstName, ...rest } = member;
-  const payload = { ...rest };
-  if (firstName) payload.firstName = firstName;
-  if (isAdminMember(member, config.adminGroupIds, config.adminGroupNames)) {
-    payload.isAdmin = true;
-  }
-  return payload;
+  return clientMemberView(member, {
+    adminGroupIds: config.adminGroupIds,
+    adminGroupNames: config.adminGroupNames,
+  });
 }
 
 function canTrack(member, config) {
@@ -431,7 +428,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
       return jsonOk(
         {
           member: memberPayload(member, config),
-          contributors: withPublicNames(await getAllContributors(db)),
+          contributors: toAdminContributors(withPublicNames(await getAllContributors(db))),
         },
         corsHeaders,
       );

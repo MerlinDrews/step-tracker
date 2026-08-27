@@ -457,7 +457,7 @@ function populateAdminParticipants() {
   const previous = els.adminParticipant.value;
   const options = adminContributors.map(
     (c) =>
-      `<option value="${escapeHtml(c.contactId)}">${escapeHtml(c.name || c.email || c.contactId)} (${formatSteps(c.steps)} total)</option>`,
+      `<option value="${escapeHtml(c.contactId)}">${escapeHtml(c.name || c.contactId)} (${formatSteps(c.steps)} total)</option>`,
   );
   els.adminParticipant.innerHTML =
     options.length > 0
@@ -532,7 +532,6 @@ function setupAdminPanel() {
     try {
       const res = await api.adminSetSteps(contactId, validated.steps, date, {
         name: contributor?.name,
-        email: contributor?.email,
       });
       if (!res.ok) {
         setMessage(els.adminFormError, res.error);

@@ -135,3 +135,36 @@ export function assertAdminMember(member, adminIds = [], adminNames = []) {
 export function isAdminMember(member, adminIds = [], adminNames = []) {
   return assertAdminMember(member, adminIds, adminNames).ok;
 }
+
+/**
+ * Minimal member object for browser/API responses.
+ * Group membership and other authorization inputs stay server-side only.
+ *
+ * @param {Member|null|undefined} member
+ * @param {{ adminGroupIds?: string[], adminGroupNames?: string[] }} [opts]
+ * @returns {{ name: string, isAdmin?: true }|null|undefined}
+ */
+export function clientMemberView(member, opts = {}) {
+  if (!member) return member;
+  const { adminGroupIds = [], adminGroupNames = [] } = opts;
+  /** @type {{ name: string, isAdmin?: true }} */
+  const payload = {
+    name: member.name || 'Member',
+  };
+  if (isAdminMember(member, adminGroupIds, adminGroupNames)) {
+    payload.isAdmin = true;
+  }
+  return payload;
+}
+
+/**
+ * Admin participant picker rows — contact id, public name, and total only.
+ * @param {Array<{ contactId: string|number, name?: string, steps?: number }>} contributors
+ */
+export function toAdminContributors(contributors) {
+  return (contributors || []).map((c) => ({
+    contactId: String(c.contactId),
+    name: c.name || `Member ${c.contactId}`,
+    steps: Number(c.steps) || 0,
+  }));
+}
