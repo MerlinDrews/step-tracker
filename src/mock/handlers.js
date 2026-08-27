@@ -9,10 +9,13 @@ import {
   isAdminMember,
   leaderboardTotals,
   personalTotal,
+  resolveNameParts,
   todayKey,
+  uniqueDisplayNames,
   upsertDailySteps,
   validateDateKey,
   validateSteps,
+  withPublicNames,
 } from '../domain/index.js';
 import {
   listMockUsers,
@@ -36,11 +39,52 @@ import {
 export function createMockHandlers(storage) {
   function memberPayload(member) {
     if (!member) return member;
-    const payload = { ...member };
+    const { lastName: _last, ...rest } = member;
+    const payload = { ...rest };
     if (isAdminMember(member, MOCK_ADMIN_GROUP_IDS, MOCK_ADMIN_GROUP_NAMES)) {
       payload.isAdmin = true;
     }
     return payload;
+  }
+
+  function peopleFromRows(rows, extra) {
+    /** @type {Map<string, object>} */
+    const byId = new Map();
+    for (const row of rows) {
+      byId.set(String(row.contactId), {
+        contactId: String(row.contactId),
+        firstName: row.firstName,
+        lastName: row.lastName,
+        name: row.name,
+      });
+    }
+    if (extra) {
+      byId.set(String(extra.contactId), {
+        contactId: String(extra.contactId),
+        firstName: extra.firstName,
+        lastName: extra.lastName,
+        name: extra.name,
+      });
+    }
+    return [...byId.values()];
+  }
+
+  function withRewrittenNames(rows, displays) {
+    return rows.map((row) => ({
+      ...row,
+      name: displays.get(String(row.contactId)) || row.name,
+    }));
+  }
+
+  function publicizeMember(member, rows) {
+    const parts = resolveNameParts(member);
+    const displays = uniqueDisplayNames(peopleFromRows(rows, { ...member, ...parts }));
+    return {
+      ...member,
+      firstName: parts.firstName,
+      lastName: parts.lastName,
+      name: displays.get(String(member.contactId)) || member.name,
+    };
   }
 
   function canTrack(member) {
@@ -74,9 +118,11 @@ export function createMockHandlers(storage) {
       if (!gate.ok) {
         return { ok: false, error: gate.error };
       }
-      const token = `mock-session-${member.contactId}-${Date.now()}`;
-      await storage.setSession({ token, member: { ...member } });
-      return { ok: true, member: { ...member }, sessionToken: token };
+      const rows = await storage.loadRows();
+      const publicMember = publicizeMember(member, rows);
+      const token = `mock-session-${publicMember.contactId}-${Date.now()}`;
+      await storage.setSession({ token, member: publicMember });
+      return { ok: true, member: memberPayload(publicMember), sessionToken: token };
     },
 
     async logout() {
@@ -102,19 +148,21 @@ export function createMockHandlers(storage) {
       if (!dateCheck.ok) return dateCheck;
 
       const rows = await storage.loadRows();
-      const history = historyForContact(rows, session.member.contactId);
-      const daySteps = findStepsForDate(rows, session.member.contactId, dateCheck.date);
+      const publicMember = publicizeMember(session.member, rows);
+      await storage.setSession({ ...session, member: publicMember });
+      const history = historyForContact(rows, publicMember.contactId);
+      const daySteps = findStepsForDate(rows, publicMember.contactId, dateCheck.date);
 
       return {
         ok: true,
-        member: memberPayload(session.member),
+        member: memberPayload(publicMember),
         today,
         selectedDate: dateCheck.date,
         daySteps,
-        todaySteps: findStepsForDate(rows, session.member.contactId, today),
+        todaySteps: findStepsForDate(rows, publicMember.contactId, today),
         history,
         canTrack: true,
-        personalTotal: personalTotal(rows, session.member.contactId),
+        personalTotal: personalTotal(rows, publicMember.contactId),
       };
     },
 
@@ -137,15 +185,36 @@ export function createMockHandlers(storage) {
       if (!dateCheck.ok) return dateCheck;
 
       const rows = await storage.loadRows();
-      const next = upsertDailySteps(rows, {
+      const parts = resolveNameParts(session.member);
+      const displays = uniqueDisplayNames(
+        peopleFromRows(rows, {
+          contactId: session.member.contactId,
+          firstName: parts.firstName,
+          lastName: parts.lastName,
+          name: session.member.name,
+        }),
+      );
+      const publicName =
+        displays.get(String(session.member.contactId)) || session.member.name;
+      let next = upsertDailySteps(rows, {
         date: dateCheck.date,
         contactId: session.member.contactId,
         email: session.member.email,
-        name: session.member.name,
+        name: publicName,
+        firstName: parts.firstName,
+        lastName: parts.lastName,
         steps: validated.steps,
         updated_at: new Date().toISOString(),
       });
+      next = withRewrittenNames(next, displays);
       await storage.saveRows(next);
+      const publicMember = {
+        ...session.member,
+        firstName: parts.firstName,
+        lastName: parts.lastName,
+        name: publicName,
+      };
+      await storage.setSession({ ...session, member: publicMember });
 
       return {
         ok: true,
@@ -210,15 +279,32 @@ export function createMockHandlers(storage) {
       const existingRow = rows.find(
         (r) => r.date === dateCheck.date && String(r.contactId) === String(contactId),
       );
+      const parts = resolveNameParts({
+        firstName: profile.firstName ?? existingRow?.firstName,
+        lastName: profile.lastName ?? existingRow?.lastName,
+        name: profile.name || existingRow?.name || `Member ${contactId}`,
+      });
+      const displays = uniqueDisplayNames(
+        peopleFromRows(rows, {
+          contactId: String(contactId),
+          firstName: parts.firstName,
+          lastName: parts.lastName,
+          name: profile.name || existingRow?.name,
+        }),
+      );
+      const publicName = displays.get(String(contactId)) || parts.firstName || `Member ${contactId}`;
 
-      const next = upsertDailySteps(rows, {
+      let next = upsertDailySteps(rows, {
         date: dateCheck.date,
         contactId: String(contactId),
         email: profile.email || existingRow?.email || '',
-        name: profile.name || existingRow?.name || `Member ${contactId}`,
+        name: publicName,
+        firstName: parts.firstName,
+        lastName: parts.lastName,
         steps: validated.steps,
         updated_at: new Date().toISOString(),
       });
+      next = withRewrittenNames(next, displays);
       await storage.saveRows(next);
 
       return {
@@ -248,7 +334,7 @@ export function createMockHandlers(storage) {
       return {
         ok: true,
         member: memberPayload(session.member),
-        contributors: totals.contributors,
+        contributors: withPublicNames(totals.contributors),
       };
     },
   };

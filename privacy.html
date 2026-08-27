@@ -78,12 +78,13 @@
           <h2 id="data-heading" class="legal-block__title">Data we process</h2>
           <ul class="legal-list">
             <li>
-              <strong>Account / membership:</strong> Wild Apricot contact ID, name, email, membership
-              status, and group memberships (to check Walkathon / club / admin access)
+              <strong>Account / membership:</strong> Wild Apricot contact ID, first/last name (last
+              name kept server-side for display disambiguation), email, membership status, and group
+              memberships (to check Walkathon / club / admin access)
             </li>
             <li>
-              <strong>Step entries:</strong> date, step count, and when the entry was last updated,
-              linked to your contact ID
+              <strong>Step entries:</strong> date, step count, public display name (e.g.
+              &ldquo;Alex R.&rdquo;), and when the entry was last updated, linked to your contact ID
             </li>
             <li>
               <strong>Session:</strong> a signed session token stored in the browser
@@ -130,7 +131,8 @@
             </li>
           </ul>
           <p>
-            Leaderboard views show display names and step totals to signed-in club members who are
+            Leaderboard views show public display names (first name + disambiguated last-name
+            initials) and step totals to signed-in club members who are
             allowed to see them — not to the public internet.
           </p>
         </section>

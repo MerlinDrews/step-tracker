@@ -23,7 +23,7 @@ describe('createMockApi', () => {
     expect(login.ok).toBe(true);
     const me = await api.getMe();
     expect(me.ok).toBe(true);
-    expect(me.member.name).toBe('Alex Rivera');
+    expect(me.member.name).toBe('Alex R.');
   });
 
   it('rejects inactive mock user at login', async () => {

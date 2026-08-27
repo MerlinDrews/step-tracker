@@ -24,6 +24,8 @@ export function upsertDailySteps(rows, entry) {
     steps: entry.steps,
     updated_at,
   };
+  if (entry.firstName != null) row.firstName = entry.firstName;
+  if (entry.lastName != null) row.lastName = entry.lastName;
 
   if (idx >= 0) {
     next[idx] = {
@@ -31,6 +33,8 @@ export function upsertDailySteps(rows, entry) {
       ...row,
       email: entry.email ?? next[idx].email,
       name: entry.name ?? next[idx].name,
+      firstName: entry.firstName ?? next[idx].firstName,
+      lastName: entry.lastName ?? next[idx].lastName,
     };
   } else {
     next.push(row);

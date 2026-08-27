@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS steps (
   contact_id TEXT NOT NULL,
   email TEXT NOT NULL DEFAULT '',
   name TEXT NOT NULL DEFAULT '',
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name TEXT NOT NULL DEFAULT '',
   steps INTEGER NOT NULL CHECK (steps >= 0 AND steps <= 100000),
   updated_at TEXT NOT NULL,
   updated_by_contact_id TEXT,

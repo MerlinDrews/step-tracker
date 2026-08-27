@@ -1,3 +1,5 @@
+import { withPublicNames } from './names.js';
+
 /** Max ranks shown on the leaderboard. */
 export const LEADERBOARD_LIMIT = 10;
 
@@ -36,7 +38,7 @@ export function dedupeDailyRows(rows) {
  */
 export function aggregateTotals(rows) {
   const deduped = dedupeDailyRows(rows);
-  /** @type {Map<string, { contactId: string, name: string, email: string, steps: number }>} */
+  /** @type {Map<string, { contactId: string, name: string, email: string, steps: number, firstName?: string, lastName?: string }>} */
   const byPerson = new Map();
 
   for (const row of deduped) {
@@ -47,12 +49,16 @@ export function aggregateTotals(rows) {
       existing.steps += steps;
       if (row.name) existing.name = row.name;
       if (row.email) existing.email = row.email;
+      if (row.firstName) existing.firstName = row.firstName;
+      if (row.lastName) existing.lastName = row.lastName;
     } else {
       byPerson.set(id, {
         contactId: id,
         name: row.name || row.email || `Member ${id}`,
         email: row.email || '',
         steps,
+        ...(row.firstName ? { firstName: row.firstName } : {}),
+        ...(row.lastName ? { lastName: row.lastName } : {}),
       });
     }
   }
@@ -87,10 +93,11 @@ export function topContributors(contributors, limit = LEADERBOARD_LIMIT) {
  */
 export function leaderboardTotals(rows, limit = LEADERBOARD_LIMIT) {
   const full = aggregateTotals(rows);
+  const contributors = withPublicNames(full.contributors);
   return {
     totalSteps: full.totalSteps,
-    contributors: topContributors(full.contributors, limit),
-    participantCount: full.contributors.length,
+    contributors: topContributors(contributors, limit),
+    participantCount: contributors.length,
     leaderboardLimit: limit,
   };
 }

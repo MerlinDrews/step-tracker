@@ -43,6 +43,8 @@ export async function createSessionToken(member, secret) {
     contactId: member.contactId,
     email: member.email,
     name: member.name,
+    firstName: member.firstName || '',
+    // lastName stays server-side only — never put in the client-held token
     membershipStatus: member.membershipStatus || 'Active',
     groups: member.groups || [],
     exp: Date.now() + 7 * 24 * 60 * 60 * 1000,
@@ -130,6 +132,8 @@ export async function fetchContactMe(accessToken, accountId) {
   return {
     contactId: String(raw.Id),
     email: raw.Email || '',
+    firstName: String(raw.FirstName || '').trim(),
+    lastName: String(raw.LastName || '').trim(),
     name: [raw.FirstName, raw.LastName].filter(Boolean).join(' ') || raw.Email || 'Member',
     membershipStatus: raw.Status || 'Active',
     groups: parseGroupsFromFieldValues(raw.FieldValues),
@@ -186,6 +190,8 @@ function membershipFromCache(entry) {
     membershipStatus: entry.membershipStatus,
     groups: entry.groups,
     name: entry.name,
+    firstName: entry.firstName,
+    lastName: entry.lastName,
     email: entry.email,
   };
 }
@@ -196,6 +202,8 @@ export function seedMemberCache(member, ttlMs) {
     membershipStatus: member.membershipStatus || 'Active',
     groups: member.groups || [],
     name: member.name,
+    firstName: member.firstName || '',
+    lastName: member.lastName || '',
     email: member.email,
     exp: Date.now() + ttlMs,
   });
@@ -227,6 +235,8 @@ export async function ensureFreshMember(member, config) {
     const fresh = {
       membershipStatus: raw.Status || member.membershipStatus || 'Active',
       groups: parseGroupsFromFieldValues(raw.FieldValues),
+      firstName: String(raw.FirstName || member.firstName || '').trim(),
+      lastName: String(raw.LastName || member.lastName || '').trim(),
       name:
         [raw.FirstName, raw.LastName].filter(Boolean).join(' ') || member.name,
       email: raw.Email || member.email,
@@ -250,6 +260,10 @@ export async function enrichMemberGroups(member, config) {
     member.groups = parseGroupsFromFieldValues(raw.FieldValues);
     if (raw.Status) member.membershipStatus = raw.Status;
     if (raw.Email) member.email = raw.Email;
+    const firstName = String(raw.FirstName || '').trim();
+    const lastName = String(raw.LastName || '').trim();
+    if (firstName) member.firstName = firstName;
+    if (lastName) member.lastName = lastName;
     const name = [raw.FirstName, raw.LastName].filter(Boolean).join(' ');
     if (name) member.name = name;
   } catch {
