@@ -366,7 +366,10 @@ function maybeShowAdmin(member) {
   els.sectionAdmin.hidden = false;
   updateAdminFormLabels();
   renderAdminCalendar();
-  refreshAdminContributors();
+}
+
+async function finishAdminInit() {
+  if (isAdmin) await refreshAdminContributors();
 }
 
 function updateAdminFormLabels() {
@@ -776,7 +779,6 @@ async function initLeaderboard() {
   if (board.ok) {
     showBoardContent(board.totals);
     maybeShowAdmin(board.member);
-    if (board.member?.isAdmin) refreshAdminContributors();
     renderPublicTotal(board.totals.totalSteps, board.canTrack ? board.personalTotal : null);
   } else {
     const notSignedIn = /not signed in/i.test(board.error || '');
@@ -804,7 +806,6 @@ async function initTrack() {
     updateFormLabels();
     renderCalendar();
     maybeShowAdmin(me.member);
-    if (me.member?.isAdmin) refreshAdminContributors();
     if (me.canTrack && me.personalTotal !== undefined) {
       renderPublicTotal(clubTotalSteps ?? me.personalTotal, me.personalTotal);
     }
@@ -853,6 +854,7 @@ async function init() {
         initLeaderboard(),
         initTrack(),
       ]);
+      await finishAdminInit();
       return;
     }
 
@@ -863,10 +865,12 @@ async function init() {
 
     if (part === 'leaderboard') {
       await initLeaderboard();
+      await finishAdminInit();
       return;
     }
 
     await initTrack();
+    await finishAdminInit();
   } finally {
     setLoading(false);
   }
