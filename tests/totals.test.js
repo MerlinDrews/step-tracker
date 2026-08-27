@@ -39,7 +39,9 @@ describe('aggregateTotals', () => {
     expect(board.contributors).toHaveLength(10);
     expect(board.participantCount).toBe(12);
     expect(board.leaderboardLimit).toBe(10);
-    expect(board.contributors[0].steps).toBe(12000);
+    expect(board.contributors[0]).toEqual({ name: expect.any(String), steps: 12000 });
+    expect(board.contributors[0]).not.toHaveProperty('email');
+    expect(board.contributors[0]).not.toHaveProperty('contactId');
   });
 });
 

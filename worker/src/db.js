@@ -1,4 +1,4 @@
-import { withPublicNames } from '../../src/domain/names.js';
+import { toLeaderboardContributors, withPublicNames } from '../../src/domain/names.js';
 
 /**
  * @typedef {import('@cloudflare/workers-types').D1Database} D1Database
@@ -62,7 +62,7 @@ export async function getLeaderboardTotals(db, limit) {
   const all = withPublicNames(await getAllContributors(db));
   return {
     totalSteps,
-    contributors: all.slice(0, Math.max(0, limit)),
+    contributors: toLeaderboardContributors(all.slice(0, Math.max(0, limit))),
     participantCount: all.length,
     leaderboardLimit: limit,
   };

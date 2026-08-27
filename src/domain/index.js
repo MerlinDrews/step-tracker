@@ -29,5 +29,6 @@ export {
   parsePersonName,
   resolveNameParts,
   uniqueDisplayNames,
+  toLeaderboardContributors,
   withPublicNames,
 } from './names.js';
