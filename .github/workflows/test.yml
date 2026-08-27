@@ -1,10 +1,8 @@
 name: Unit tests
 
-# Runs on every pull request so PRs get a test status check without Pages deploy permissions.
+# PR gate only — required check before merge. Main deploy is deploy.yml (no second test run).
 on:
   pull_request:
-  push:
-    branches: [main, master]
   workflow_dispatch:
 
 permissions:
