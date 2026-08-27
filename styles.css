@@ -655,7 +655,8 @@ body {
 }
 
 .aiwcd-step-counter .calendar__day.has-entry:not(.is-selected) {
-  border-color: var(--mist);
+  border-color: var(--steel);
+  background: #eef5f7;
 }
 
 .aiwcd-step-counter .calendar__day.is-future,
@@ -669,10 +670,11 @@ body {
 }
 
 .aiwcd-step-counter .calendar__dot {
-  width: 0.35rem;
-  height: 0.35rem;
+  width: 0.45rem;
+  height: 0.45rem;
   border-radius: 50%;
-  background: var(--steel);
+  background: var(--teal);
+  flex-shrink: 0;
 }
 
 .aiwcd-step-counter .calendar__hint {

@@ -453,10 +453,14 @@ async function refreshAdminContributors() {
   if (!res.ok) return;
   adminContributors = res.contributors || [];
   populateAdminParticipants();
+  if (els.adminParticipant?.value) {
+    await loadAdminParticipant();
+  }
 }
 
 function populateAdminParticipants() {
   if (!els.adminParticipant) return;
+  const previous = els.adminParticipant.value;
   const options = adminContributors.map(
     (c) =>
       `<option value="${escapeHtml(c.contactId)}">${escapeHtml(c.name || c.email || c.contactId)} (${formatSteps(c.steps)} total)</option>`,
@@ -465,6 +469,9 @@ function populateAdminParticipants() {
     options.length > 0
       ? options.join('')
       : '<option value="">No participants yet</option>';
+  if (previous && adminContributors.some((c) => String(c.contactId) === String(previous))) {
+    els.adminParticipant.value = previous;
+  }
 }
 
 function setupAdminPanel() {
