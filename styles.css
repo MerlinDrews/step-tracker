@@ -96,6 +96,39 @@ body {
   text-decoration: underline;
 }
 
+.aiwcd-step-counter .site-footer__legal {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.aiwcd-step-counter .site-footer__legal a,
+.aiwcd-step-counter .site-footer__cookie-btn {
+  color: var(--teal);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.aiwcd-step-counter .site-footer__legal a:hover,
+.aiwcd-step-counter .site-footer__cookie-btn:hover {
+  color: var(--navy);
+  text-decoration: underline;
+}
+
+.aiwcd-step-counter .site-footer__sep {
+  margin: 0 0.35rem;
+  color: var(--mist);
+}
+
+.aiwcd-step-counter .site-footer__cookie-btn {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 .aiwcd-step-counter .site-footer__hint {
   margin: 0;
   font-size: 0.8rem;
@@ -103,6 +136,67 @@ body {
   max-width: 28rem;
   margin-left: auto;
   margin-right: auto;
+}
+
+.aiwcd-step-counter .cookie-banner {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1rem;
+  background: rgba(0, 42, 69, 0.92);
+  color: #fff;
+  box-shadow: 0 -4px 24px rgba(0, 59, 95, 0.25);
+}
+
+.aiwcd-step-counter .cookie-banner[hidden] {
+  display: none;
+}
+
+.aiwcd-step-counter .cookie-banner__inner {
+  width: min(640px, 100%);
+  margin: 0 auto;
+}
+
+.aiwcd-step-counter .cookie-banner__title {
+  margin: 0 0 0.4rem;
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.aiwcd-step-counter .cookie-banner__text {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--mist);
+}
+
+.aiwcd-step-counter .cookie-banner__text a {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.aiwcd-step-counter .cookie-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+.aiwcd-step-counter .cookie-banner .btn--secondary {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(197, 214, 219, 0.55);
+}
+
+.aiwcd-step-counter .cookie-banner .btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #fff;
 }
 
 .aiwcd-step-counter *,

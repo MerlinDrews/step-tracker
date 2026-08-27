@@ -13,12 +13,6 @@
     <link rel="icon" href="./favicon.ico" sizes="any" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Raleway:wght@600;700&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="./styles.css" />
     <script src="./config.js"></script>
   </head>
@@ -192,8 +186,41 @@
           <a href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">AIWCD</a>
           · American International Women's Club of Düsseldorf
         </p>
+        <p class="site-footer__legal">
+          <a href="https://www.aiwcduesseldorf.org/impressum" target="_blank" rel="noopener noreferrer">Impressum</a>
+          <span class="site-footer__sep" aria-hidden="true">·</span>
+          <a href="https://www.aiwcduesseldorf.org/privacy" target="_blank" rel="noopener noreferrer">Privacy</a>
+          <span class="site-footer__sep" aria-hidden="true">·</span>
+          <button type="button" id="cookie-settings" class="site-footer__cookie-btn">Cookie settings</button>
+        </p>
         <p class="site-footer__hint">Members: sign in with your club account to log steps and view the leaderboard.</p>
       </footer>
+
+      <div
+        id="cookie-banner"
+        class="cookie-banner"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="cookie-banner-title"
+        aria-describedby="cookie-banner-desc"
+        hidden
+      >
+        <div class="cookie-banner__inner">
+          <h2 id="cookie-banner-title" class="cookie-banner__title">Cookies &amp; privacy</h2>
+          <p id="cookie-banner-desc" class="cookie-banner__text">
+            We use essential browser storage for club login. Optional Google Fonts improve typography and load from Google&rsquo;s servers.
+            No advertising or analytics cookies.
+            See our
+            <a href="https://www.aiwcduesseldorf.org/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+            and
+            <a href="https://www.aiwcduesseldorf.org/impressum" target="_blank" rel="noopener noreferrer">Impressum</a>.
+          </p>
+          <div class="cookie-banner__actions">
+            <button type="button" id="cookie-essential" class="btn btn--secondary">Essential only</button>
+            <button type="button" id="cookie-accept" class="btn btn--primary">Accept all</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="./src/app.js"></script>
