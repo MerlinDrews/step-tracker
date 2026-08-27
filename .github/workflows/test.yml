@@ -1,6 +1,6 @@
 name: Unit tests
 
-# PR gate only — required check before merge. Main deploy is deploy.yml (no second test run).
+# PR gate only — do not run on push to main (deploy.yml runs tests there before ship).
 on:
   pull_request:
   workflow_dispatch:
