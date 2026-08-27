@@ -137,6 +137,9 @@ export async function handleAction(action, method, body, config, db, ctx) {
 
   try {
     if (action === 'public_config' && method === 'GET') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
       return jsonOk(
         {
           waClientId: config.waClientId,
@@ -176,6 +179,9 @@ export async function handleAction(action, method, body, config, db, ctx) {
     }
 
     if (action === 'leaderboard' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertActiveMember(member);
@@ -193,6 +199,9 @@ export async function handleAction(action, method, body, config, db, ctx) {
     }
 
     if (action === 'me' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertAuthorizedMember(
@@ -371,6 +380,9 @@ export async function handleAction(action, method, body, config, db, ctx) {
     }
 
     if (action === 'admin_participant' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const adminGate = assertAdminMember(
@@ -405,6 +417,9 @@ export async function handleAction(action, method, body, config, db, ctx) {
     }
 
     if (action === 'admin_contributors' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const adminGate = assertAdminMember(
@@ -423,6 +438,9 @@ export async function handleAction(action, method, body, config, db, ctx) {
     }
 
     if (action === 'logout' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
+      }
       return jsonOk({}, corsHeaders);
     }
 

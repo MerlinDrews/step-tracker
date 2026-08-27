@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatDisplayName,
   parsePersonName,
+  toLeaderboardContributors,
   uniqueDisplayNames,
   withPublicNames,
 } from '../src/domain/names.js';
@@ -84,5 +85,20 @@ describe('withPublicNames', () => {
     expect(rows[1].name).toBe('Alex Re.');
     expect(rows[0]).not.toHaveProperty('firstName');
     expect(rows[0]).not.toHaveProperty('lastName');
+  });
+});
+
+describe('toLeaderboardContributors', () => {
+  it('returns only public display name and step total', () => {
+    const rows = toLeaderboardContributors([
+      { contactId: '1', name: 'Alex R.', steps: 10, email: 'a@x' },
+      { contactId: '2', name: 'Jordan L.', steps: 5, email: 'b@x' },
+    ]);
+    expect(rows).toEqual([
+      { name: 'Alex R.', steps: 10 },
+      { name: 'Jordan L.', steps: 5 },
+    ]);
+    expect(rows[0]).not.toHaveProperty('email');
+    expect(rows[0]).not.toHaveProperty('contactId');
   });
 });

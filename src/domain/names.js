@@ -115,3 +115,15 @@ export function withPublicNames(contributors) {
     };
   });
 }
+
+/**
+ * Leaderboard-facing contributor rows: public display name and step total only.
+ * @param {Array<{ name?: string, steps?: number, email?: string, contactId?: string|number }>} contributors
+ * @returns {Array<{ name: string, steps: number }>}
+ */
+export function toLeaderboardContributors(contributors) {
+  return (contributors || []).map((c) => ({
+    name: c.name || `Member ${c.contactId ?? ''}`.trim(),
+    steps: Number(c.steps) || 0,
+  }));
+}

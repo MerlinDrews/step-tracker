@@ -40,6 +40,11 @@ describe('createMockApi', () => {
     expect(board.ok).toBe(true);
     expect(board.totals.contributors.length).toBeGreaterThan(0);
     expect(board.totals.totalSteps).toBe(1000);
+    for (const row of board.totals.contributors) {
+      expect(row).toEqual({ name: expect.any(String), steps: expect.any(Number) });
+      expect(row).not.toHaveProperty('email');
+      expect(row).not.toHaveProperty('contactId');
+    }
 
     const me = await api.getMe();
     expect(me.ok).toBe(false);

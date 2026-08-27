@@ -356,7 +356,7 @@ function showBoardContent(totals) {
   renderLeaderboard(totals);
 }
 
-function maybeShowAdmin(member, contributors) {
+function maybeShowAdmin(member) {
   isAdmin = Boolean(member?.isAdmin);
   if (!isAdmin || !els.sectionAdmin) {
     if (els.sectionAdmin) els.sectionAdmin.hidden = true;
@@ -364,15 +364,9 @@ function maybeShowAdmin(member, contributors) {
   }
 
   els.sectionAdmin.hidden = false;
-  if (Array.isArray(contributors) && contributors.length) {
-    adminContributors = contributors;
-  }
-  populateAdminParticipants();
   updateAdminFormLabels();
   renderAdminCalendar();
-  if (els.adminParticipant?.value) {
-    loadAdminParticipant();
-  }
+  refreshAdminContributors();
 }
 
 function updateAdminFormLabels() {
@@ -453,10 +447,14 @@ async function refreshAdminContributors() {
   if (!res.ok) return;
   adminContributors = res.contributors || [];
   populateAdminParticipants();
+  if (els.adminParticipant?.value) {
+    await loadAdminParticipant();
+  }
 }
 
 function populateAdminParticipants() {
   if (!els.adminParticipant) return;
+  const previous = els.adminParticipant.value;
   const options = adminContributors.map(
     (c) =>
       `<option value="${escapeHtml(c.contactId)}">${escapeHtml(c.name || c.email || c.contactId)} (${formatSteps(c.steps)} total)</option>`,
@@ -465,6 +463,9 @@ function populateAdminParticipants() {
     options.length > 0
       ? options.join('')
       : '<option value="">No participants yet</option>';
+  if (previous && adminContributors.some((c) => String(c.contactId) === String(previous))) {
+    els.adminParticipant.value = previous;
+  }
 }
 
 function setupAdminPanel() {
@@ -551,8 +552,7 @@ function setupAdminPanel() {
         if (part === 'all' || part === 'leaderboard') {
           showBoardContent(res.totals);
         }
-        adminContributors = res.totals.contributors || adminContributors;
-        populateAdminParticipants();
+        await refreshAdminContributors();
       } else {
         await refreshAdminContributors();
         if (part === 'all' || part === 'total') await initTotal();
@@ -776,7 +776,7 @@ async function initLeaderboard() {
 
   if (board.ok) {
     showBoardContent(board.totals);
-    maybeShowAdmin(board.member, board.totals?.contributors);
+    maybeShowAdmin(board.member);
     if (board.member?.isAdmin) refreshAdminContributors();
     renderPublicTotal(board.totals.totalSteps, board.canTrack ? board.personalTotal : null);
   } else {

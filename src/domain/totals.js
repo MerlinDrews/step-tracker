@@ -1,4 +1,4 @@
-import { withPublicNames } from './names.js';
+import { toLeaderboardContributors, withPublicNames } from './names.js';
 
 /** Max ranks shown on the leaderboard. */
 export const LEADERBOARD_LIMIT = 10;
@@ -93,11 +93,12 @@ export function topContributors(contributors, limit = LEADERBOARD_LIMIT) {
  */
 export function leaderboardTotals(rows, limit = LEADERBOARD_LIMIT) {
   const full = aggregateTotals(rows);
-  const contributors = withPublicNames(full.contributors);
+  const named = withPublicNames(full.contributors);
+  const contributors = toLeaderboardContributors(topContributors(named, limit));
   return {
     totalSteps: full.totalSteps,
-    contributors: topContributors(contributors, limit),
-    participantCount: contributors.length,
+    contributors,
+    participantCount: full.contributors.length,
     leaderboardLimit: limit,
   };
 }

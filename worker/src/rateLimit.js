@@ -21,9 +21,15 @@ export function checkRateLimit(key, max, windowMs) {
 /** @type {Record<string, { max: number, windowMs: number }>} */
 export const ACTION_LIMITS = {
   auth_exchange: { max: 15, windowMs: 15 * 60 * 1000 },
+  public_config: { max: 60, windowMs: 15 * 60 * 1000 },
+  public_total: { max: 120, windowMs: 60 * 1000 },
+  leaderboard: { max: 60, windowMs: 15 * 60 * 1000 },
+  me: { max: 120, windowMs: 15 * 60 * 1000 },
   log: { max: 60, windowMs: 15 * 60 * 1000 },
   admin_set_steps: { max: 30, windowMs: 15 * 60 * 1000 },
-  public_total: { max: 120, windowMs: 60 * 1000 },
+  admin_participant: { max: 60, windowMs: 15 * 60 * 1000 },
+  admin_contributors: { max: 30, windowMs: 15 * 60 * 1000 },
+  logout: { max: 30, windowMs: 15 * 60 * 1000 },
 };
 
 /**
