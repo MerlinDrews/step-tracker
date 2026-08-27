@@ -88,6 +88,25 @@ Logic: `src/domain/names.js`, `clientMemberView()` in `src/domain/membership.js`
 | Log steps / see personal total | Active + Walkathon allow-list (`ALLOWED_GROUP_IDS` / `ALLOWED_GROUP_NAMES`) |
 | Admin edit steps | Active + admin allow-list (`ADMIN_GROUP_IDS` / `ADMIN_GROUP_NAMES`) |
 
+Every gated action re-checks membership on the Worker from the session token plus a fresh Wild Apricot lookup (or cache). The frontend `isAdmin` flag and UI visibility are not trusted for authorization.
+
+### Backend authorization gates
+
+| Action | Session | Gate function | Purpose |
+|--------|---------|---------------|---------|
+| `public_config` | No | — | OAuth bootstrap only |
+| `public_total` | No | — | Club total only |
+| `auth_exchange` | OAuth code | `assertActiveMember` | Sign-in |
+| `leaderboard` | Yes | `assertActiveMember` | Any active member may view |
+| `me` | Yes | `assertAuthorizedMember` | Walkathon group required |
+| `log` | Yes | `assertAuthorizedMember` | Walkathon group required |
+| `admin_set_steps` | Yes | `assertAdminMember` | Admin group required |
+| `admin_participant` | Yes | `assertAdminMember` | Admin group required |
+| `admin_contributors` | Yes | `assertAdminMember` | Admin group required |
+| `logout` | No | — | Client drops token |
+
+`assertAuthorizedMember` = active membership + Walkathon allow-list. `assertAdminMember` = active membership + admin allow-list (fail closed when admin lists are empty). Track writes always use the authenticated member’s `contactId` from the session — never a client-supplied id.
+
 If both allow-list env vars are empty for Walkathon, any **Active** member can log (dev convenience). In production, set the Walkathon group names/ids.
 
 Group membership is loaded via the Wild Apricot Admin API when needed (`/contacts/me` often omits groups). Optional `WA_API_KEY` is preferred for that; otherwise the OAuth client credentials may be used.
