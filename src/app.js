@@ -724,4 +724,79 @@ async function init() {
   }
 }
 
+const COOKIE_CONSENT_KEY = 'aiwcd-cookie-consent';
+const GOOGLE_FONTS_HREF =
+  'https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Raleway:wght@600;700&display=swap';
+
+function getCookieConsent() {
+  try {
+    const value = localStorage.getItem(COOKIE_CONSENT_KEY);
+    if (value === 'all' || value === 'essential') return value;
+  } catch {
+    /* private mode / blocked storage */
+  }
+  return null;
+}
+
+function setCookieConsent(value) {
+  try {
+    localStorage.setItem(COOKIE_CONSENT_KEY, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadGoogleFonts() {
+  if (document.getElementById('aiwcd-google-fonts')) return;
+
+  const preconnectApi = document.createElement('link');
+  preconnectApi.rel = 'preconnect';
+  preconnectApi.href = 'https://fonts.googleapis.com';
+  document.head.appendChild(preconnectApi);
+
+  const preconnectStatic = document.createElement('link');
+  preconnectStatic.rel = 'preconnect';
+  preconnectStatic.href = 'https://fonts.gstatic.com';
+  preconnectStatic.crossOrigin = 'anonymous';
+  document.head.appendChild(preconnectStatic);
+
+  const stylesheet = document.createElement('link');
+  stylesheet.id = 'aiwcd-google-fonts';
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = GOOGLE_FONTS_HREF;
+  document.head.appendChild(stylesheet);
+}
+
+function applyCookieConsent(value) {
+  if (value === 'all') loadGoogleFonts();
+}
+
+function initCookieBanner() {
+  const banner = document.getElementById('cookie-banner');
+  const acceptBtn = document.getElementById('cookie-accept');
+  const essentialBtn = document.getElementById('cookie-essential');
+  const settingsBtn = document.getElementById('cookie-settings');
+  if (!banner || !acceptBtn || !essentialBtn) return;
+
+  const existing = getCookieConsent();
+  if (existing) {
+    applyCookieConsent(existing);
+  } else {
+    banner.hidden = false;
+  }
+
+  function choose(value) {
+    setCookieConsent(value);
+    applyCookieConsent(value);
+    banner.hidden = true;
+  }
+
+  acceptBtn.addEventListener('click', () => choose('all'));
+  essentialBtn.addEventListener('click', () => choose('essential'));
+  settingsBtn?.addEventListener('click', () => {
+    banner.hidden = false;
+  });
+}
+
+initCookieBanner();
 init();
