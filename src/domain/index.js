@@ -24,3 +24,10 @@ export {
 } from './totals.js';
 export { formatSteps, toLeaderboardView } from './format.js';
 export { csvToRows, rowsToCsv, CSV_HEADERS } from './csv.js';
+export {
+  formatDisplayName,
+  parsePersonName,
+  resolveNameParts,
+  uniqueDisplayNames,
+  withPublicNames,
+} from './names.js';

@@ -1,3 +1,5 @@
+import { withPublicNames } from '../../src/domain/names.js';
+
 /**
  * @typedef {import('@cloudflare/workers-types').D1Database} D1Database
  */
@@ -17,37 +19,51 @@ export async function getPersonalTotal(db, contactId) {
   return Number(row?.total) || 0;
 }
 
+function mapContributor(r) {
+  return {
+    contactId: String(r.contact_id),
+    name: String(r.name || r.email || `Member ${r.contact_id}`),
+    firstName: String(r.first_name || ''),
+    lastName: String(r.last_name || ''),
+    email: String(r.email || ''),
+    steps: Number(r.steps) || 0,
+  };
+}
+
+/**
+ * Distinct participants with latest known name parts (for display / disambiguation).
+ */
+export async function getContactNameParts(db) {
+  const { results } = await db
+    .prepare(
+      `SELECT contact_id,
+              MAX(email) AS email,
+              MAX(name) AS name,
+              MAX(first_name) AS first_name,
+              MAX(last_name) AS last_name
+       FROM steps
+       GROUP BY contact_id`,
+    )
+    .all();
+  return (results || []).map((r) => ({
+    contactId: String(r.contact_id),
+    email: String(r.email || ''),
+    name: String(r.name || ''),
+    firstName: String(r.first_name || ''),
+    lastName: String(r.last_name || ''),
+  }));
+}
+
 /**
  * @returns {Promise<{ totalSteps: number, contributors: Array<object>, participantCount: number, leaderboardLimit: number }>}
  */
 export async function getLeaderboardTotals(db, limit) {
   const totalSteps = await getClubTotal(db);
-  const countRow = await db
-    .prepare('SELECT COUNT(DISTINCT contact_id) AS n FROM steps')
-    .first();
-  const participantCount = Number(countRow?.n) || 0;
-
-  const { results } = await db
-    .prepare(
-      `SELECT contact_id, email, name, SUM(steps) AS steps
-       FROM steps
-       GROUP BY contact_id
-       ORDER BY steps DESC, name ASC
-       LIMIT ?`,
-    )
-    .bind(limit)
-    .all();
-
-  const contributors = (results || []).map((r) => ({
-    contactId: String(r.contact_id),
-    name: String(r.name || r.email || `Member ${r.contact_id}`),
-    steps: Number(r.steps) || 0,
-  }));
-
+  const all = withPublicNames(await getAllContributors(db));
   return {
     totalSteps,
-    contributors,
-    participantCount,
+    contributors: all.slice(0, Math.max(0, limit)),
+    participantCount: all.length,
     leaderboardLimit: limit,
   };
 }
@@ -55,18 +71,13 @@ export async function getLeaderboardTotals(db, limit) {
 export async function getAllContributors(db) {
   const { results } = await db
     .prepare(
-      `SELECT contact_id, email, name, SUM(steps) AS steps
+      `SELECT contact_id, email, name, first_name, last_name, SUM(steps) AS steps
        FROM steps
        GROUP BY contact_id
        ORDER BY steps DESC, name ASC`,
     )
     .all();
-  return (results || []).map((r) => ({
-    contactId: String(r.contact_id),
-    email: String(r.email || ''),
-    name: String(r.name || r.email || `Member ${r.contact_id}`),
-    steps: Number(r.steps) || 0,
-  }));
+  return (results || []).map(mapContributor);
 }
 
 export async function getDaySteps(db, contactId, date) {
@@ -96,11 +107,13 @@ export async function getHistoryForContact(db, contactId) {
 export async function upsertDaySteps(db, entry) {
   await db
     .prepare(
-      `INSERT INTO steps (date, contact_id, email, name, steps, updated_at, updated_by_contact_id, updated_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO steps (date, contact_id, email, name, first_name, last_name, steps, updated_at, updated_by_contact_id, updated_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(date, contact_id) DO UPDATE SET
          email = excluded.email,
          name = excluded.name,
+         first_name = excluded.first_name,
+         last_name = excluded.last_name,
          steps = excluded.steps,
          updated_at = excluded.updated_at,
          updated_by_contact_id = excluded.updated_by_contact_id,
@@ -111,12 +124,29 @@ export async function upsertDaySteps(db, entry) {
       String(entry.contactId),
       entry.email || '',
       entry.name || '',
+      entry.firstName || '',
+      entry.lastName || '',
       entry.steps,
       entry.updated_at,
       entry.updated_by_contact_id || null,
       entry.updated_by_name || null,
     )
     .run();
+}
+
+/**
+ * Rewrite public `name` for every row of each contact (keeps disambiguation in sync).
+ * @param {D1Database} db
+ * @param {Map<string, string>} displayByContactId
+ */
+export async function updateContactDisplayNames(db, displayByContactId) {
+  const stmts = [];
+  for (const [contactId, name] of displayByContactId.entries()) {
+    stmts.push(
+      db.prepare('UPDATE steps SET name = ? WHERE contact_id = ?').bind(name, contactId),
+    );
+  }
+  if (stmts.length) await db.batch(stmts);
 }
 
 export async function writeAuditLog(db, row) {
