@@ -135,6 +135,12 @@ async function handleApi(req, res, url) {
     const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
     return sendJson(res, status, result);
   }
+  if (req.method === 'POST' && route === '/admin/participant') {
+    const body = await readJson(req);
+    const result = await handlers.adminParticipant(body.contactId, body.date);
+    const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
+    return sendJson(res, status, result);
+  }
 
   return sendJson(res, 404, { ok: false, error: 'Unknown API route' });
 }

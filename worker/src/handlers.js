@@ -370,6 +370,40 @@ export async function handleAction(action, method, body, config, db, ctx) {
       );
     }
 
+    if (action === 'admin_participant' && method === 'POST') {
+      const member = await resolveMember(body, config);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
+      const adminGate = assertAdminMember(
+        member,
+        config.adminGroupIds,
+        config.adminGroupNames,
+      );
+      if (!adminGate.ok) return jsonErr(adminGate.error, 403, corsHeaders);
+
+      const contactId = body?.contactId;
+      if (contactId === undefined || contactId === null || contactId === '') {
+        return jsonErr('Missing contactId', 400, corsHeaders);
+      }
+
+      const today = todayKey();
+      const dateCheck = validateDateKey(body?.date || today, today);
+      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
+
+      const history = await getHistoryForContact(db, String(contactId));
+      const daySteps = await getDaySteps(db, contactId, dateCheck.date);
+
+      return jsonOk(
+        {
+          member: memberPayload(member, config),
+          contactId: String(contactId),
+          selectedDate: dateCheck.date,
+          daySteps,
+          history,
+        },
+        corsHeaders,
+      );
+    }
+
     if (action === 'admin_contributors' && method === 'POST') {
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);

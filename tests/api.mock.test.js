@@ -137,6 +137,24 @@ describe('createMockApi', () => {
     expect(pub.totalSteps).toBe(7777);
   });
 
+  it('returns participant step history for admin calendar', async () => {
+    await api.loginAs('admin');
+    await api.adminSetSteps('1001', 4321, '2026-08-08');
+
+    const res = await api.adminParticipant('1001', '2026-08-08');
+    expect(res.ok).toBe(true);
+    expect(res.contactId).toBe('1001');
+    expect(res.daySteps).toBe(4321);
+    expect(res.history['2026-08-08']).toBe(4321);
+  });
+
+  it('rejects admin participant history from non-admin members', async () => {
+    await api.loginAs('alex');
+    const res = await api.adminParticipant('1002', '2026-08-08');
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/admin|configured/i);
+  });
+
   it('rejects admin edits from non-admin members', async () => {
     await api.loginAs('alex');
     const res = await api.adminSetSteps('1002', 100, '2026-08-08');

@@ -188,5 +188,9 @@ export function createProdApi(config) {
     async adminContributors() {
       return postAction('admin_contributors');
     },
+
+    async adminParticipant(contactId, date) {
+      return postAction('admin_participant', { contactId, date });
+    },
   };
 }
