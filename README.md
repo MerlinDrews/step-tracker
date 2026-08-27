@@ -68,7 +68,7 @@ Open http://localhost:4173
 
 ## Production deploy (summary)
 
-Push to `main` runs deploy only (Worker + GitHub Pages via `deploy.yml`). Pull requests run unit tests (`test.yml`); require that check in branch protection before merge.
+Push to `main` runs `deploy.yml` (tests → Worker → Pages). Pull requests run `test.yml` only — require that check before merge.
 
 **GitHub Actions secrets**
 

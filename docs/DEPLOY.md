@@ -101,21 +101,23 @@ Open the Pages URL → Connect club login → log a day → check leaderboard.
 
 ## Ongoing deploys
 
-Every **push to `main`** (or **Actions → Run workflow**) runs `.github/workflows/deploy.yml` (Worker → Pages). Unit tests already ran on the merged PR.
+Every **push to `main`** (or **Actions → Run workflow**) runs `.github/workflows/deploy.yml`: unit tests → Worker → Pages. That is the only workflow on merge — not a separate `test.yml` run.
 
-**Pull requests** run unit tests via `.github/workflows/test.yml` (no deploy). Enable branch protection requiring the **Unit tests / Test** check before merge.
+**Pull requests** run unit tests via `.github/workflows/test.yml` only (no deploy). Require the **Unit tests / Test** check in branch protection before merge.
 
 ```mermaid
 flowchart LR
+  test[Unit tests]
   worker[Deploy Worker + D1 migrations]
   pages[Deploy GitHub Pages]
+  test --> worker
   worker --> pages
 ```
 
 | What | Automated? | Trigger |
 |------|------------|---------|
-| Unit tests on PRs | Yes | Every pull request (`test.yml`) — merge blocker when branch protection enabled |
-| Worker code deploy | Yes | Push to `main` (needs `CLOUDFLARE_*` secrets + real `database_id` in `wrangler.toml`) |
+| Unit tests on PRs | Yes | Every pull request (`test.yml` only) |
+| Test + deploy on merge | Yes | Push to `main` (`deploy.yml`: test → Worker → Pages) |
 | D1 schema migrations | Yes | Same — runs `wrangler d1 migrations apply` before deploy |
 | GitHub Pages frontend | Yes | Push to `main` (needs `WORKER_URL`, `WA_SITE_URL`) |
 | Worker secrets | **No** — set once via `wrangler secret put` | Only re-run if you rotate credentials |
