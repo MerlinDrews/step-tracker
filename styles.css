@@ -199,6 +199,115 @@ body {
   border-color: #fff;
 }
 
+.aiwcd-step-counter .legal-page {
+  padding-bottom: 2.5rem;
+}
+
+.aiwcd-step-counter .legal-page__back {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+}
+
+.aiwcd-step-counter .legal-page__back a {
+  color: var(--teal);
+  font-weight: 700;
+}
+
+.aiwcd-step-counter .legal-page__back a:hover {
+  color: var(--navy);
+  text-decoration: underline;
+}
+
+.aiwcd-step-counter .legal-page__title {
+  margin: 0 0 0.5rem;
+  font-family: var(--display);
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: 0.02em;
+}
+
+.aiwcd-step-counter .legal-page__lede {
+  margin: 0 0 1.75rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+}
+
+.aiwcd-step-counter .legal-page__lede a {
+  color: var(--teal);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.aiwcd-step-counter .legal-block {
+  margin: 0 0 1.5rem;
+  padding: 1.1rem 1.15rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--steel);
+  border-radius: 2px;
+}
+
+.aiwcd-step-counter .legal-block__title {
+  margin: 0 0 0.55rem;
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.aiwcd-step-counter .legal-block p {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.aiwcd-step-counter .legal-block p:last-child {
+  margin-bottom: 0;
+}
+
+.aiwcd-step-counter .legal-block a {
+  color: var(--teal);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.aiwcd-step-counter .legal-block a:hover {
+  color: var(--navy);
+}
+
+.aiwcd-step-counter .legal-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+  font-size: 0.95rem;
+}
+
+.aiwcd-step-counter .legal-list:last-child {
+  margin-bottom: 0;
+}
+
+.aiwcd-step-counter .legal-list li {
+  margin-bottom: 0.45rem;
+}
+
+.aiwcd-step-counter .legal-list li:last-child {
+  margin-bottom: 0;
+}
+
+.aiwcd-step-counter .legal-block code {
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  background: #f0f5f7;
+  border-radius: 2px;
+  color: var(--teal);
+}
+
+.aiwcd-step-counter .site-footer__legal a[aria-current="page"] {
+  color: var(--navy);
+  text-decoration: underline;
+  pointer-events: none;
+}
+
 .aiwcd-step-counter *,
 .aiwcd-step-counter *::before,
 .aiwcd-step-counter *::after {

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy — AIWCD Walkathon Step Challenge</title>
+    <meta name="description" content="Privacy notice for the AIWCD Walkathon Step Challenge." />
+    <meta name="theme-color" content="#003b5f" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; base-uri 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://www.aiwcduesseldorf.org https://cdn.wildapricot.com data:; form-action 'self'"
+    />
+    <link rel="icon" href="./favicon.ico" sizes="any" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="aiwcd-step-counter">
+      <header class="site-header">
+        <div class="site-header__inner">
+          <a
+            class="site-header__brand"
+            href="https://www.aiwcduesseldorf.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              class="site-header__logo"
+              src="https://www.aiwcduesseldorf.org/resources/Pictures/AIWCD_Logo/AIWCD_logo_horizontal_flame-right_color_white-text.png"
+              alt="American International Women's Club of Düsseldorf"
+              width="220"
+              height="44"
+            />
+          </a>
+          <p class="site-header__title">Walkathon Step Challenge</p>
+        </div>
+      </header>
+
+      <main class="page legal-page">
+        <p class="legal-page__back">
+          <a href="./index.html">← Back to step tracker</a>
+        </p>
+
+        <h1 class="legal-page__title">Privacy notice</h1>
+        <p class="legal-page__lede">
+          How this Walkathon Step Challenge processes personal data. This notice covers the step
+          tracker only. The main club site has its own
+          <a href="https://www.aiwcduesseldorf.org/privacy" target="_blank" rel="noopener noreferrer"
+            >AIWCD Privacy policy</a
+          >.
+        </p>
+
+        <section class="legal-block" aria-labelledby="controller-heading">
+          <h2 id="controller-heading" class="legal-block__title">Controller</h2>
+          <p>
+            American International Women's Club of Düsseldorf e.V.<br />
+            Postfach 31 01 47, 40489 Düsseldorf, Germany<br />
+            <a href="mailto:president@aiwcduesseldorf.org">president@aiwcduesseldorf.org</a>
+          </p>
+          <p>
+            See also the
+            <a href="./impressum.html">Impressum</a>
+            for full provider details.
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="purpose-heading">
+          <h2 id="purpose-heading" class="legal-block__title">Purpose</h2>
+          <p>
+            We process data so club members can log daily steps, see personal and club totals, and
+            (when eligible) view a leaderboard for the Walkathon Step Challenge.
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="data-heading">
+          <h2 id="data-heading" class="legal-block__title">Data we process</h2>
+          <ul class="legal-list">
+            <li>
+              <strong>Account / membership:</strong> Wild Apricot contact ID, name, email, membership
+              status, and group memberships (to check Walkathon / club / admin access)
+            </li>
+            <li>
+              <strong>Step entries:</strong> date, step count, and when the entry was last updated,
+              linked to your contact ID
+            </li>
+            <li>
+              <strong>Session:</strong> a signed session token stored in the browser
+              (<code>sessionStorage</code>) after login
+            </li>
+            <li>
+              <strong>Consent preference:</strong> cookie / font consent choice in
+              <code>localStorage</code> (if you use the banner on the tracker)
+            </li>
+          </ul>
+        </section>
+
+        <section class="legal-block" aria-labelledby="basis-heading">
+          <h2 id="basis-heading" class="legal-block__title">Legal basis</h2>
+          <p>
+            Processing is based on the club&rsquo;s legitimate interest in running the Walkathon
+            challenge for members (Art. 6(1)(f) GDPR), and on your participation as a member.
+            Optional Google Fonts load only after you choose &ldquo;Accept all&rdquo; on the cookie
+            banner (consent, Art. 6(1)(a) GDPR / TTDSG §&nbsp;25).
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="processors-heading">
+          <h2 id="processors-heading" class="legal-block__title">Processors &amp; recipients</h2>
+          <ul class="legal-list">
+            <li>
+              <strong>Wild Apricot</strong> — membership login and profile/group data used for access
+              control
+            </li>
+            <li>
+              <strong>Cloudflare</strong> — Worker API and D1 database storing step entries and
+              validating sessions
+            </li>
+            <li>
+              <strong>GitHub Pages</strong> — hosts the static website (no step database on Pages)
+            </li>
+            <li>
+              <strong>Google</strong> — only if you accept optional fonts (fonts loaded from Google
+              servers; your IP address is transmitted)
+            </li>
+            <li>
+              <strong>Club admins</strong> — may correct a participant&rsquo;s daily steps when help
+              is needed
+            </li>
+          </ul>
+          <p>
+            Leaderboard views show display names and step totals to signed-in club members who are
+            allowed to see them — not to the public internet.
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="storage-heading">
+          <h2 id="storage-heading" class="legal-block__title">Cookies &amp; local storage</h2>
+          <ul class="legal-list">
+            <li>
+              <strong>Essential:</strong> session token in <code>sessionStorage</code> for club login
+              (cleared when you sign out or close the tab/window, depending on the browser)
+            </li>
+            <li>
+              <strong>Essential:</strong> consent choice in <code>localStorage</code> so we remember
+              your banner decision
+            </li>
+            <li>
+              <strong>Optional:</strong> Google Fonts (no advertising or analytics cookies on this
+              app)
+            </li>
+          </ul>
+          <p>
+            You can change your choice anytime via <strong>Cookie settings</strong> in the tracker
+            footer.
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="retention-heading">
+          <h2 id="retention-heading" class="legal-block__title">Retention</h2>
+          <p>
+            Step entries are kept for the duration of the challenge and as long as the club needs
+            them for that event&rsquo;s records. Session tokens expire (currently after about seven
+            days) or when you sign out. Consent preferences remain until you clear site data or
+            change them.
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="rights-heading">
+          <h2 id="rights-heading" class="legal-block__title">Your rights</h2>
+          <p>
+            Under the GDPR you may request access, rectification, erasure, restriction, or data
+            portability, and object to processing based on legitimate interests. Contact
+            <a href="mailto:president@aiwcduesseldorf.org">president@aiwcduesseldorf.org</a>.
+            You may also lodge a complaint with a supervisory authority (in NRW:
+            Landesbeauftragte für Datenschutz und Informationsfreiheit Nordrhein-Westfalen).
+          </p>
+        </section>
+
+        <section class="legal-block" aria-labelledby="updates-heading">
+          <h2 id="updates-heading" class="legal-block__title">Updates</h2>
+          <p>
+            We may update this notice when the app or hosting setup changes. The version on this
+            page is the current one for the Step Challenge.
+          </p>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p class="site-footer__text">
+          <a href="https://www.aiwcduesseldorf.org/" target="_blank" rel="noopener noreferrer">AIWCD</a>
+          · American International Women's Club of Düsseldorf
+        </p>
+        <p class="site-footer__legal">
+          <a href="./impressum.html">Impressum</a>
+          <span class="site-footer__sep" aria-hidden="true">·</span>
+          <a href="./privacy.html" aria-current="page">Privacy</a>
+          <span class="site-footer__sep" aria-hidden="true">·</span>
+          <a href="./index.html">Step tracker</a>
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
