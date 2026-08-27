@@ -11,32 +11,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: deploy-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Install
-        run: npm ci
-
-      - name: Unit tests
-        run: npm test
-
   deploy-worker:
     name: Deploy Cloudflare Worker
-    needs: test
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
@@ -87,7 +67,7 @@ jobs:
 
   deploy:
     name: Deploy GitHub Pages
-    needs: [test, deploy-worker]
+    needs: deploy-worker
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment:
