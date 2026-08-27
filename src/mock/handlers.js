@@ -318,6 +318,41 @@ export function createMockHandlers(storage) {
       };
     },
 
+    async adminParticipant(contactId, selectedDate) {
+      const session = await storage.getSession();
+      const sessionCheck = assertSession(session.token);
+      if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
+      const adminGate = assertAdminMember(
+        session.member,
+        MOCK_ADMIN_GROUP_IDS,
+        MOCK_ADMIN_GROUP_NAMES,
+      );
+      if (!adminGate.ok) return { ok: false, error: adminGate.error };
+
+      if (contactId === undefined || contactId === null || contactId === '') {
+        return { ok: false, error: 'Missing contactId' };
+      }
+
+      const today = todayKey();
+      const dateCheck = selectedDate
+        ? validateDateKey(selectedDate, today)
+        : { ok: true, date: today };
+      if (!dateCheck.ok) return dateCheck;
+
+      const rows = await storage.loadRows();
+      const history = historyForContact(rows, contactId);
+      const daySteps = findStepsForDate(rows, contactId, dateCheck.date);
+
+      return {
+        ok: true,
+        member: memberPayload(session.member),
+        contactId: String(contactId),
+        selectedDate: dateCheck.date,
+        daySteps,
+        history,
+      };
+    },
+
     async adminContributors() {
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);

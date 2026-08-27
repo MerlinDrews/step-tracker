@@ -90,5 +90,12 @@ export function createLocalHttpApi() {
     async adminContributors() {
       return request('/admin/contributors');
     },
+
+    async adminParticipant(contactId, date) {
+      return request('/admin/participant', {
+        method: 'POST',
+        body: { contactId, date },
+      });
+    },
   };
 }

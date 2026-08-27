@@ -154,13 +154,26 @@
             <select id="admin-participant" class="field__input"></select>
           </label>
 
+          <div class="calendar" aria-label="Choose a day to edit for participant">
+            <div class="calendar__nav">
+              <button id="admin-cal-prev" type="button" class="calendar__nav-btn" aria-label="Previous month">‹</button>
+              <p id="admin-cal-label" class="calendar__label">Month</p>
+              <button id="admin-cal-next" type="button" class="calendar__nav-btn" aria-label="Next month">›</button>
+            </div>
+            <div class="calendar__dow" aria-hidden="true">
+              <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+            </div>
+            <div id="admin-cal-grid" class="calendar__grid"></div>
+            <p class="calendar__hint">Tap a day to edit steps. Days with a saved entry are marked.</p>
+          </div>
+
           <label class="field" for="admin-date">
-            <span class="field__label">Date</span>
+            <span class="field__label">Selected day</span>
             <input id="admin-date" class="field__input field__input--date" type="date" />
           </label>
 
           <label class="field" for="admin-steps">
-            <span class="field__label">Steps</span>
+            <span id="admin-steps-label" class="field__label">Steps</span>
             <input
               id="admin-steps"
               class="field__input"

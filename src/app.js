@@ -27,6 +27,15 @@ let isAdmin = false;
 
 /** @type {Array<{ contactId: string, name: string, email?: string, steps: number }>} */
 let adminContributors = [];
+/** @type {string} */
+let adminSelectedDate = todayKey();
+/** @type {Record<string, number>} */
+let adminHistory = {};
+/** @type {{ year: number, monthIndex: number }} */
+let adminViewMonth = (() => {
+  const d = parseDateKey(adminSelectedDate) || new Date();
+  return { year: d.getFullYear(), monthIndex: d.getMonth() };
+})();
 
 function getConfig() {
   return window.STEP_COUNTER_CONFIG || {};
@@ -99,8 +108,13 @@ const els = {
   appLoadingText: $('app-loading-text'),
   sectionAdmin: $('section-admin'),
   adminParticipant: $('admin-participant'),
+  adminCalPrev: $('admin-cal-prev'),
+  adminCalNext: $('admin-cal-next'),
+  adminCalLabel: $('admin-cal-label'),
+  adminCalGrid: $('admin-cal-grid'),
   adminDate: $('admin-date'),
   adminSteps: $('admin-steps'),
+  adminStepsLabel: $('admin-steps-label'),
   adminSaveBtn: $('admin-save-btn'),
   adminFormError: $('admin-form-error'),
   adminFormSuccess: $('admin-form-success'),
@@ -210,15 +224,15 @@ function updateFormLabels() {
   els.dateInput.max = todayKey();
 }
 
-function renderCalendar() {
-  if (!els.calLabel || !els.calGrid) return;
-  const grid = buildMonthGrid(viewMonth.year, viewMonth.monthIndex, {
+function renderMonthCalendar({ labelEl, gridEl, month, selected, historyMap }) {
+  if (!labelEl || !gridEl) return;
+  const grid = buildMonthGrid(month.year, month.monthIndex, {
     today: todayKey(),
-    selected: selectedDate,
-    history,
+    selected,
+    history: historyMap,
   });
-  els.calLabel.textContent = grid.label;
-  els.calGrid.innerHTML = grid.cells
+  labelEl.textContent = grid.label;
+  gridEl.innerHTML = grid.cells
     .map((cell) => {
       if (cell.type === 'empty') {
         return '<div class="calendar__cell calendar__cell--empty"></div>';
@@ -244,6 +258,26 @@ function renderCalendar() {
       </button>`;
     })
     .join('');
+}
+
+function renderCalendar() {
+  renderMonthCalendar({
+    labelEl: els.calLabel,
+    gridEl: els.calGrid,
+    month: viewMonth,
+    selected: selectedDate,
+    historyMap: history,
+  });
+}
+
+function renderAdminCalendar() {
+  renderMonthCalendar({
+    labelEl: els.adminCalLabel,
+    gridEl: els.adminCalGrid,
+    month: adminViewMonth,
+    selected: adminSelectedDate,
+    historyMap: adminHistory,
+  });
 }
 
 function applyDaySteps(daySteps) {
@@ -334,10 +368,83 @@ function maybeShowAdmin(member, contributors) {
     adminContributors = contributors;
   }
   populateAdminParticipants();
-  if (els.adminDate) {
-    els.adminDate.value = selectedDate;
-    els.adminDate.max = todayKey();
+  updateAdminFormLabels();
+  renderAdminCalendar();
+  if (els.adminParticipant?.value) {
+    loadAdminParticipant();
   }
+}
+
+function updateAdminFormLabels() {
+  if (!els.adminStepsLabel || !els.adminSaveBtn || !els.adminDate) return;
+  const label = formatDisplayDate(adminSelectedDate);
+  const isToday = adminSelectedDate === todayKey();
+  els.adminStepsLabel.textContent = isToday ? 'Steps today' : `Steps for ${label}`;
+  els.adminSaveBtn.textContent = isToday
+    ? "Save today's steps for participant"
+    : `Save steps for ${label}`;
+  els.adminDate.value = adminSelectedDate;
+  els.adminDate.max = todayKey();
+}
+
+function applyAdminDaySteps(daySteps) {
+  if (!els.adminSteps) return;
+  if (daySteps !== null && daySteps !== undefined) {
+    els.adminSteps.value = String(daySteps);
+  } else {
+    els.adminSteps.value = '';
+  }
+}
+
+async function loadAdminParticipant() {
+  const contactId = els.adminParticipant?.value;
+  if (!contactId || typeof api.adminParticipant !== 'function') return;
+
+  setMessage(els.adminFormError, '');
+  const res = await api.adminParticipant(contactId, adminSelectedDate);
+  if (!res.ok) {
+    setMessage(els.adminFormError, res.error);
+    return;
+  }
+
+  adminHistory = res.history || {};
+  if (res.selectedDate) adminSelectedDate = res.selectedDate;
+  const d = parseDateKey(adminSelectedDate);
+  if (d) {
+    adminViewMonth = { year: d.getFullYear(), monthIndex: d.getMonth() };
+  }
+  applyAdminDaySteps(res.daySteps);
+  updateAdminFormLabels();
+  renderAdminCalendar();
+}
+
+async function selectAdminDate(dateKey) {
+  adminSelectedDate = dateKey;
+  const d = parseDateKey(dateKey);
+  if (d) {
+    adminViewMonth = { year: d.getFullYear(), monthIndex: d.getMonth() };
+  }
+  updateAdminFormLabels();
+  renderAdminCalendar();
+
+  const contactId = els.adminParticipant?.value;
+  if (!contactId || typeof api.adminParticipant !== 'function') {
+    applyAdminDaySteps(adminHistory[dateKey] ?? null);
+    renderAdminCalendar();
+    return;
+  }
+
+  setMessage(els.adminFormError, '');
+  const res = await api.adminParticipant(contactId, adminSelectedDate);
+  if (!res.ok) {
+    setMessage(els.adminFormError, res.error);
+    return;
+  }
+  adminHistory = res.history || {};
+  if (res.selectedDate) adminSelectedDate = res.selectedDate;
+  applyAdminDaySteps(res.daySteps);
+  updateAdminFormLabels();
+  renderAdminCalendar();
 }
 
 async function refreshAdminContributors() {
@@ -363,6 +470,43 @@ function populateAdminParticipants() {
 function setupAdminPanel() {
   if (!els.adminSaveBtn || typeof api.adminSetSteps !== 'function') return;
 
+  if (els.adminParticipant) {
+    els.adminParticipant.addEventListener('change', async () => {
+      setMessage(els.adminFormError, '');
+      setMessage(els.adminFormSuccess, '');
+      await loadAdminParticipant();
+    });
+  }
+
+  if (els.adminCalPrev && els.adminCalNext && els.adminCalGrid && els.adminDate) {
+    els.adminCalPrev.addEventListener('click', () => {
+      const d = new Date(adminViewMonth.year, adminViewMonth.monthIndex - 1, 1);
+      adminViewMonth = { year: d.getFullYear(), monthIndex: d.getMonth() };
+      renderAdminCalendar();
+    });
+
+    els.adminCalNext.addEventListener('click', () => {
+      const d = new Date(adminViewMonth.year, adminViewMonth.monthIndex + 1, 1);
+      adminViewMonth = { year: d.getFullYear(), monthIndex: d.getMonth() };
+      renderAdminCalendar();
+    });
+
+    els.adminCalGrid.addEventListener('click', async (event) => {
+      const btn = event.target.closest('[data-date]');
+      if (!btn || btn.disabled) return;
+      setMessage(els.adminFormError, '');
+      setMessage(els.adminFormSuccess, '');
+      await selectAdminDate(btn.dataset.date);
+    });
+
+    els.adminDate.addEventListener('change', async () => {
+      if (!els.adminDate.value) return;
+      setMessage(els.adminFormError, '');
+      setMessage(els.adminFormSuccess, '');
+      await selectAdminDate(els.adminDate.value);
+    });
+  }
+
   els.adminSaveBtn.addEventListener('click', async () => {
     setMessage(els.adminFormError, '');
     setMessage(els.adminFormSuccess, '');
@@ -379,7 +523,7 @@ function setupAdminPanel() {
       return;
     }
 
-    const date = els.adminDate?.value || todayKey();
+    const date = adminSelectedDate || els.adminDate?.value || todayKey();
     const contributor = adminContributors.find((c) => String(c.contactId) === String(contactId));
 
     els.adminSaveBtn.disabled = true;
@@ -397,6 +541,11 @@ function setupAdminPanel() {
         els.adminFormSuccess,
         `Saved ${formatSteps(res.steps)} steps for ${contributor?.name || contactId} on ${formatDisplayDate(date)}`,
       );
+      adminHistory = { ...adminHistory, [date]: res.steps };
+      adminSelectedDate = date;
+      applyAdminDaySteps(res.steps);
+      updateAdminFormLabels();
+      renderAdminCalendar();
       if (res.totals) {
         renderPublicTotal(res.totals.totalSteps);
         if (part === 'all' || part === 'leaderboard') {
