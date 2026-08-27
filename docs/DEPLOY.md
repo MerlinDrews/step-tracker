@@ -101,19 +101,27 @@ Open the Pages URL → Connect club login → log a day → check leaderboard.
 
 ## Ongoing deploys
 
-Every push to `main` (or **Actions → Run workflow**):
+Every **push to `main`** (or **Actions → Run workflow**) runs `.github/workflows/deploy.yml` (tests → Worker → Pages).
 
-```text
-Unit tests → Worker migrate + deploy → GitHub Pages
+**Pull requests** run unit tests only via `.github/workflows/test.yml` (no deploy).
+
+```mermaid
+flowchart LR
+  test[Unit tests]
+  worker[Deploy Worker + D1 migrations]
+  pages[Deploy GitHub Pages]
+  test --> worker
+  worker --> pages
 ```
 
-| What | Automated? |
-|------|------------|
-| Worker code | Yes (needs `CLOUDFLARE_*` secrets + real `database_id` in `wrangler.toml`) |
-| D1 migrations | Yes (`worker/migrations/`) |
-| Pages frontend | Yes (needs `WORKER_URL`, `WA_SITE_URL`) |
-| Worker secrets | No — rotate with `wrangler secret put` when needed |
-| WA OAuth settings | No — Wild Apricot admin |
+| What | Automated? | Trigger |
+|------|------------|---------|
+| Unit tests on PRs | Yes | Every pull request (`test.yml`) |
+| Worker code deploy | Yes | Push to `main` (needs `CLOUDFLARE_*` secrets + real `database_id` in `wrangler.toml`) |
+| D1 schema migrations | Yes | Same — runs `wrangler d1 migrations apply` before deploy |
+| GitHub Pages frontend | Yes | Push to `main` (needs `WORKER_URL`, `WA_SITE_URL`) |
+| Worker secrets | **No** — set once via `wrangler secret put` | Only re-run if you rotate credentials |
+| WA OAuth app settings | **No** | Manual in Wild Apricot admin |
 
 Day-to-day: change code → push → CI.
 
