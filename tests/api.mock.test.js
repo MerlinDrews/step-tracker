@@ -182,4 +182,18 @@ describe('createMockApi', () => {
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/admin|configured/i);
   });
+
+  it('rejects admin_contributors from non-admin members', async () => {
+    await api.loginAs('alex');
+    const res = await api.adminContributors();
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/admin|configured/i);
+  });
+
+  it('requires session for track and admin endpoints', async () => {
+    expect((await api.getMe()).ok).toBe(false);
+    expect((await api.adminContributors()).ok).toBe(false);
+    expect((await api.adminParticipant('1001')).ok).toBe(false);
+    expect((await api.adminSetSteps('1001', 100)).ok).toBe(false);
+  });
 });
