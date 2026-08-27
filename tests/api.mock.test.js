@@ -21,9 +21,13 @@ describe('createMockApi', () => {
   it('logs in active mock user and returns me', async () => {
     const login = await api.loginAs('alex');
     expect(login.ok).toBe(true);
+    expect(login.member).toEqual({ name: 'Alex R.' });
     const me = await api.getMe();
     expect(me.ok).toBe(true);
-    expect(me.member.name).toBe('Alex R.');
+    expect(me.member).toEqual({ name: 'Alex R.' });
+    expect(me.member).not.toHaveProperty('groups');
+    expect(me.member).not.toHaveProperty('email');
+    expect(me.member).not.toHaveProperty('contactId');
   });
 
   it('rejects inactive mock user at login', async () => {
@@ -131,7 +135,19 @@ describe('createMockApi', () => {
     await api.loginAs('admin');
     const me = await api.getMe();
     expect(me.ok).toBe(true);
-    expect(me.member.isAdmin).toBe(true);
+    expect(me.member).toEqual({ name: expect.any(String), isAdmin: true });
+    expect(me.member).not.toHaveProperty('groups');
+
+    const contributors = await api.adminContributors();
+    expect(contributors.ok).toBe(true);
+    for (const row of contributors.contributors) {
+      expect(row).toEqual({
+        contactId: expect.any(String),
+        name: expect.any(String),
+        steps: expect.any(Number),
+      });
+      expect(row).not.toHaveProperty('email');
+    }
 
     const res = await api.adminSetSteps('1001', 7777, '2026-08-08');
     expect(res.ok).toBe(true);

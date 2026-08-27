@@ -7,6 +7,8 @@ export {
   assertAuthorizedMember,
   assertAdminMember,
   isAdminMember,
+  clientMemberView,
+  toAdminContributors,
   parseGroupsFromFieldValues,
   parseAllowList,
 } from './membership.js';

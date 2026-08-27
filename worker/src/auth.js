@@ -41,12 +41,7 @@ async function hmacSign(body, secret) {
 export async function createSessionToken(member, secret) {
   const payload = {
     contactId: member.contactId,
-    email: member.email,
     name: member.name,
-    firstName: member.firstName || '',
-    // lastName stays server-side only — never put in the client-held token
-    membershipStatus: member.membershipStatus || 'Active',
-    groups: member.groups || [],
     exp: Date.now() + 7 * 24 * 60 * 60 * 1000,
   };
   const body = base64UrlEncode(new TextEncoder().encode(JSON.stringify(payload)));

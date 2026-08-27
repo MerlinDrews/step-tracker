@@ -73,9 +73,11 @@ Leaderboard and stored `name` fields use a privacy-safe form:
 
 - First name + last-name prefix (e.g. `Alex R.`).
 - Prefix lengthens until unique among people with the same first name (`Alex Ri.` / `Alex Re.`).
-- Full last names stay in D1 (`first_name`, `last_name`) for disambiguation and are not returned to the browser in session payloads.
+- Full last names stay in D1 (`first_name`, `last_name`) for disambiguation and are not returned to the browser.
 
-Logic: `src/domain/names.js`.
+Authenticated API responses expose a minimal member object only: `{ name, isAdmin? }`. Wild Apricot group membership is evaluated on the Worker and is not included in JSON responses or session tokens.
+
+Logic: `src/domain/names.js`, `clientMemberView()` in `src/domain/membership.js`.
 
 ### Access control
 
@@ -159,5 +161,5 @@ Never put WA client secrets in frontend config.
 - OAuth client secret and `SESSION_SECRET` live only on the Worker.
 - CORS restricted to configured frontend origin(s).
 - Rate limits on auth, public total, log, and admin writes.
-- Session tokens are HMAC-signed and expire (~7 days).
+- Session tokens are HMAC-signed, expire (~7 days), and hold only `contactId`, public `name`, and `exp` — not group membership.
 - Pages are `noindex` / `robots.txt` Disallow for club-only use.
