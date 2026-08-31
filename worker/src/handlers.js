@@ -3,6 +3,7 @@ import {
   assertAdminMember,
   assertAuthorizedMember,
   clientMemberView,
+  parseDateKey,
   resolveNameParts,
   todayKey,
   toAdminContributors,
@@ -210,22 +211,25 @@ export async function handleAction(action, method, body, config, db, ctx) {
       await applyMemberPublicName(db, member);
 
       const today = todayKey();
-      const dateCheck = validateDateKey(body?.date || today, today);
-      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
+      const requested = String(body?.date || today).trim();
+      if (!parseDateKey(requested)) {
+        return jsonErr('Date must be YYYY-MM-DD', 400, corsHeaders);
+      }
 
-      const daySteps = await getDaySteps(db, member.contactId, dateCheck.date);
+      const daySteps = await getDaySteps(db, member.contactId, requested);
       const history = await getHistoryForContact(db, member.contactId);
 
       return jsonOk(
         {
           member: memberPayload(member, config),
           today,
-          selectedDate: dateCheck.date,
+          selectedDate: requested,
           daySteps,
           todaySteps: await getDaySteps(db, member.contactId, today),
           history,
           canTrack: true,
           personalTotal: await getPersonalTotal(db, member.contactId),
+          trackingWindow: config.trackingWindow,
         },
         corsHeaders,
       );
@@ -248,7 +252,11 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (!validated.ok) return jsonErr(validated.error, 400, corsHeaders);
 
       const today = todayKey();
-      const dateCheck = validateDateKey(body?.date || today, today);
+      const dateCheck = validateDateKey(
+        body?.date || today,
+        today,
+        config.trackingWindow,
+      );
       if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
 
       const { displays } = await resolvePublicNames(db, member);
@@ -313,7 +321,11 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (!validated.ok) return jsonErr(validated.error, 400, corsHeaders);
 
       const today = todayKey();
-      const dateCheck = validateDateKey(body?.date || today, today);
+      const dateCheck = validateDateKey(
+        body?.date || today,
+        today,
+        config.trackingWindow,
+      );
       if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
 
       const previousSteps = await getDaySteps(db, contactId, dateCheck.date);
@@ -395,19 +407,22 @@ export async function handleAction(action, method, body, config, db, ctx) {
       }
 
       const today = todayKey();
-      const dateCheck = validateDateKey(body?.date || today, today);
-      if (!dateCheck.ok) return jsonErr(dateCheck.error, 400, corsHeaders);
+      const requested = String(body?.date || today).trim();
+      if (!parseDateKey(requested)) {
+        return jsonErr('Date must be YYYY-MM-DD', 400, corsHeaders);
+      }
 
       const history = await getHistoryForContact(db, String(contactId));
-      const daySteps = await getDaySteps(db, contactId, dateCheck.date);
+      const daySteps = await getDaySteps(db, contactId, requested);
 
       return jsonOk(
         {
           member: memberPayload(member, config),
           contactId: String(contactId),
-          selectedDate: dateCheck.date,
+          selectedDate: requested,
           daySteps,
           history,
+          trackingWindow: config.trackingWindow,
         },
         corsHeaders,
       );

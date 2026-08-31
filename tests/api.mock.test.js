@@ -196,4 +196,27 @@ describe('createMockApi', () => {
     expect((await api.adminParticipant('1001')).ok).toBe(false);
     expect((await api.adminSetSteps('1001', 100)).ok).toBe(false);
   });
+
+  it('rejects logging outside the tracking window when configured', async () => {
+    const { createMockHandlers } = await import('../src/mock/handlers.js');
+    let rows = [];
+    let token = null;
+    let member = null;
+    const gated = createMockHandlers({
+      loadRows: () => rows,
+      saveRows: (next) => {
+        rows = next;
+      },
+      getSession: () => ({ token, member }),
+      setSession: (session) => {
+        token = session.token;
+        member = session.member;
+      },
+      trackingWindow: { start: '2026-09-01', end: '2026-10-31' },
+    });
+    await gated.loginAs('alex');
+    const outside = await gated.logSteps(100, '2026-08-08');
+    expect(outside.ok).toBe(false);
+    expect(outside.error).toMatch(/starts/i);
+  });
 });

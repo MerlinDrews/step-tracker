@@ -172,6 +172,7 @@ Authenticated POSTs: body is `text/plain` JSON including `sessionToken` (simple 
 | `WORKER_URL` | Worker base URL |
 | `WA_SITE_URL` | Club site (login links, etc.) |
 | `JOIN_URL` | Walkathon event / join CTA |
+| `TRACKING_START` / `TRACKING_END` | Inclusive YYYY-MM-DD challenge window (edit here; keep Worker `TRACKING_*` vars in sync) |
 
 Never put WA client secrets in frontend config.
 

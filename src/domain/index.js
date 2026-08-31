@@ -1,4 +1,18 @@
-export { toDateKey, todayKey, parseDateKey, validateDateKey, formatDisplayDate, buildMonthGrid } from './dates.js';
+export {
+  toDateKey,
+  todayKey,
+  parseDateKey,
+  validateDateKey,
+  formatDisplayDate,
+  formatTrackingWindowLabel,
+  buildMonthGrid,
+  DEFAULT_TRACKING_START,
+  DEFAULT_TRACKING_END,
+  resolveTrackingWindow,
+  isWithinTrackingWindow,
+  defaultTrackableDate,
+  trackingDateInputBounds,
+} from './dates.js';
 export { validateSteps, MIN_STEPS, MAX_STEPS } from './validate.js';
 export {
   assertActiveMember,

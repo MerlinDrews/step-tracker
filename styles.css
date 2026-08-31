@@ -658,10 +658,34 @@ body {
   border-color: var(--mist);
 }
 
+.aiwcd-step-counter .calendar__day.is-trackable:not(.is-selected) {
+  background: #fff;
+  border-color: var(--mist);
+}
+
 .aiwcd-step-counter .calendar__day.is-future,
+.aiwcd-step-counter .calendar__day.is-out-of-range,
 .aiwcd-step-counter .calendar__day:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: not-allowed;
+}
+
+.aiwcd-step-counter .calendar__day.is-out-of-range {
+  background: repeating-linear-gradient(
+    -45deg,
+    #eef1f2,
+    #eef1f2 4px,
+    #e4e8ea 4px,
+    #e4e8ea 8px
+  );
+  color: var(--muted);
+  opacity: 1;
+}
+
+.aiwcd-step-counter .calendar__day.is-future:not(.is-out-of-range) {
+  background: #f3f5f6;
+  color: var(--muted);
+  opacity: 1;
 }
 
 .aiwcd-step-counter .calendar__day-num {
@@ -673,6 +697,16 @@ body {
   height: 0.35rem;
   border-radius: 50%;
   background: var(--steel);
+}
+
+.aiwcd-step-counter .calendar__range {
+  margin: 0.65rem 0 0;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--navy);
+  background: #e8f3f5;
+  border-left: 3px solid var(--teal);
 }
 
 .aiwcd-step-counter .calendar__hint {

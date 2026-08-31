@@ -92,7 +92,11 @@
                 <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
               </div>
               <div id="cal-grid" class="calendar__grid"></div>
-              <p class="calendar__hint">Tap a day to edit steps. Days with a saved entry are marked.</p>
+              <p id="track-range-hint" class="calendar__range" hidden></p>
+              <p class="calendar__hint">
+                Tap a trackable day to edit steps. Days outside the challenge window are greyed out.
+                Days with a saved entry are marked.
+              </p>
             </div>
 
             <label class="field" for="date-input">
@@ -164,7 +168,11 @@
               <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
             </div>
             <div id="admin-cal-grid" class="calendar__grid"></div>
-            <p class="calendar__hint">Tap a day to edit steps. Days with a saved entry are marked.</p>
+            <p id="admin-range-hint" class="calendar__range" hidden></p>
+            <p class="calendar__hint">
+              Tap a trackable day to edit steps. Days outside the challenge window are greyed out.
+              Days with a saved entry are marked.
+            </p>
           </div>
 
           <label class="field" for="admin-date">

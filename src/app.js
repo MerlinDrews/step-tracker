@@ -1,18 +1,26 @@
 import { createApi } from './api.js';
 import {
   buildMonthGrid,
+  defaultTrackableDate,
   formatDisplayDate,
   formatSteps,
+  formatTrackingWindowLabel,
   parseDateKey,
+  resolveTrackingWindow,
   todayKey,
   toLeaderboardView,
+  trackingDateInputBounds,
   validateSteps,
 } from './domain/index.js';
 
 const api = createApi();
 
+function trackingWindow() {
+  return resolveTrackingWindow(getConfig());
+}
+
 /** @type {string} */
-let selectedDate = todayKey();
+let selectedDate = defaultTrackableDate(todayKey(), trackingWindow());
 /** @type {Record<string, number>} */
 let history = {};
 /** @type {{ year: number, monthIndex: number }} */
@@ -28,7 +36,7 @@ let isAdmin = false;
 /** @type {Array<{ contactId: string, name: string, email?: string, steps: number }>} */
 let adminContributors = [];
 /** @type {string} */
-let adminSelectedDate = todayKey();
+let adminSelectedDate = defaultTrackableDate(todayKey(), trackingWindow());
 /** @type {Record<string, number>} */
 let adminHistory = {};
 /** @type {{ year: number, monthIndex: number }} */
@@ -118,6 +126,8 @@ const els = {
   adminSaveBtn: $('admin-save-btn'),
   adminFormError: $('admin-form-error'),
   adminFormSuccess: $('admin-form-success'),
+  trackRangeHint: $('track-range-hint'),
+  adminRangeHint: $('admin-range-hint'),
 };
 
 function clubLoginUrl() {
@@ -217,11 +227,31 @@ function renderLeaderboard(totals) {
 function updateFormLabels() {
   if (!els.stepsLabel || !els.saveBtn || !els.dateInput) return;
   const label = formatDisplayDate(selectedDate);
-  const isToday = selectedDate === todayKey();
+  const today = todayKey();
+  const window = trackingWindow();
+  const isToday = selectedDate === today;
+  const bounds = trackingDateInputBounds(today, window);
   els.stepsLabel.textContent = isToday ? 'Steps today' : `Steps for ${label}`;
   els.saveBtn.textContent = isToday ? "Save today's steps" : `Save steps for ${label}`;
   els.dateInput.value = selectedDate;
-  els.dateInput.max = todayKey();
+  els.dateInput.min = bounds.min;
+  els.dateInput.max = bounds.max;
+  updateRangeHints();
+}
+
+function updateRangeHints() {
+  const label = formatTrackingWindowLabel(trackingWindow());
+  const text = label
+    ? `Challenge window: ${label}. Greyed-out days cannot be tracked.`
+    : '';
+  if (els.trackRangeHint) {
+    els.trackRangeHint.textContent = text;
+    els.trackRangeHint.hidden = !text;
+  }
+  if (els.adminRangeHint) {
+    els.adminRangeHint.textContent = text;
+    els.adminRangeHint.hidden = !text;
+  }
 }
 
 function renderMonthCalendar({ labelEl, gridEl, month, selected, historyMap }) {
@@ -230,6 +260,7 @@ function renderMonthCalendar({ labelEl, gridEl, month, selected, historyMap }) {
     today: todayKey(),
     selected,
     history: historyMap,
+    window: trackingWindow(),
   });
   labelEl.textContent = grid.label;
   gridEl.innerHTML = grid.cells
@@ -237,6 +268,7 @@ function renderMonthCalendar({ labelEl, gridEl, month, selected, historyMap }) {
       if (cell.type === 'empty') {
         return '<div class="calendar__cell calendar__cell--empty"></div>';
       }
+      const disabled = !cell.isTrackable;
       const classes = [
         'calendar__cell',
         'calendar__day',
@@ -244,14 +276,21 @@ function renderMonthCalendar({ labelEl, gridEl, month, selected, historyMap }) {
         cell.isSelected ? 'is-selected' : '',
         cell.hasEntry ? 'has-entry' : '',
         cell.isFuture ? 'is-future' : '',
+        cell.isOutOfRange ? 'is-out-of-range' : '',
+        cell.isTrackable ? 'is-trackable' : '',
       ]
         .filter(Boolean)
         .join(' ');
-      const title = cell.hasEntry
-        ? `${formatDisplayDate(cell.date)}: ${formatSteps(cell.steps)} steps`
-        : formatDisplayDate(cell.date);
+      let title = formatDisplayDate(cell.date);
+      if (cell.isOutOfRange) {
+        title = `${title} — outside challenge window`;
+      } else if (cell.isFuture) {
+        title = `${title} — not yet available`;
+      } else if (cell.hasEntry) {
+        title = `${title}: ${formatSteps(cell.steps)} steps`;
+      }
       return `<button type="button" class="${classes}" data-date="${cell.date}" ${
-        cell.isFuture ? 'disabled' : ''
+        disabled ? 'disabled' : ''
       } title="${escapeHtml(title)}" aria-pressed="${cell.isSelected}">
         <span class="calendar__day-num">${cell.day}</span>
         ${cell.hasEntry ? '<span class="calendar__dot" aria-hidden="true"></span>' : ''}
@@ -375,13 +414,18 @@ async function finishAdminInit() {
 function updateAdminFormLabels() {
   if (!els.adminStepsLabel || !els.adminSaveBtn || !els.adminDate) return;
   const label = formatDisplayDate(adminSelectedDate);
-  const isToday = adminSelectedDate === todayKey();
+  const today = todayKey();
+  const window = trackingWindow();
+  const isToday = adminSelectedDate === today;
+  const bounds = trackingDateInputBounds(today, window);
   els.adminStepsLabel.textContent = isToday ? 'Steps today' : `Steps for ${label}`;
   els.adminSaveBtn.textContent = isToday
     ? "Save today's steps for participant"
     : `Save steps for ${label}`;
   els.adminDate.value = adminSelectedDate;
-  els.adminDate.max = todayKey();
+  els.adminDate.min = bounds.min;
+  els.adminDate.max = bounds.max;
+  updateRangeHints();
 }
 
 function applyAdminDaySteps(daySteps) {
@@ -600,7 +644,7 @@ function fillMockUsers(container, onSuccess) {
       setMessage(els.formErrorTrack, '');
       setMessage(els.formErrorBoard, '');
       setMessage(els.formSuccess, '');
-      selectedDate = todayKey();
+      selectedDate = defaultTrackableDate(todayKey(), trackingWindow());
       const res = await api.loginAs(user.id);
       if (!res.ok) {
         setMessage(part === 'leaderboard' ? els.formErrorBoard : els.formErrorTrack, res.error);
@@ -674,7 +718,7 @@ function setupAuthUi() {
       await api.logout();
       history = {};
       if (els.stepsInput) els.stepsInput.value = '';
-      selectedDate = todayKey();
+      selectedDate = defaultTrackableDate(todayKey(), trackingWindow());
       updateFormLabels();
       renderCalendar();
       if (part === 'track' || part === 'all') showTrackCta();
