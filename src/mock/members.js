@@ -73,48 +73,6 @@ export function daysAgo(n, from = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
-export function defaultSeedRows(from = new Date()) {
-  const ts = from.toISOString();
-  return [
-    {
-      date: daysAgo(2, from),
-      contactId: '1001',
-      email: 'alex@example.com',
-      name: 'Alex R.',
-      firstName: 'Alex',
-      lastName: 'Rivera',
-      steps: 8200,
-      updated_at: ts,
-    },
-    {
-      date: daysAgo(1, from),
-      contactId: '1001',
-      email: 'alex@example.com',
-      name: 'Alex R.',
-      firstName: 'Alex',
-      lastName: 'Rivera',
-      steps: 9100,
-      updated_at: ts,
-    },
-    {
-      date: daysAgo(2, from),
-      contactId: '1002',
-      email: 'jordan@example.com',
-      name: 'Jordan L.',
-      firstName: 'Jordan',
-      lastName: 'Lee',
-      steps: 6500,
-      updated_at: ts,
-    },
-    {
-      date: daysAgo(1, from),
-      contactId: '1002',
-      email: 'jordan@example.com',
-      name: 'Jordan L.',
-      firstName: 'Jordan',
-      lastName: 'Lee',
-      steps: 10200,
-      updated_at: ts,
-    },
-  ];
+export function defaultSeedRows(_from = new Date()) {
+  return [];
 }

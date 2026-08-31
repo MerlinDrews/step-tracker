@@ -20,6 +20,8 @@ export function createMockApi(initialRows = defaultSeedRows()) {
       token = session.token;
       member = session.member;
     },
+    // Unit tests control dates freely; local CSV server uses the real window.
+    trackingWindow: null,
   });
 
   return {

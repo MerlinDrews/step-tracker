@@ -8,8 +8,10 @@ import {
   findStepsForDate,
   historyForContact,
   leaderboardTotals,
+  parseDateKey,
   personalTotal,
   resolveNameParts,
+  resolveTrackingWindow,
   todayKey,
   toAdminContributors,
   uniqueDisplayNames,
@@ -35,9 +37,15 @@ import {
  *   saveRows: (rows: Array<object>) => void | Promise<void>,
  *   getSession: () => ({ token: string|null, member: object|null }) | Promise<...>,
  *   setSession: (session: { token: string|null, member: object|null }) => void | Promise<void>,
+ *   trackingWindow?: { start: string, end: string } | null,
  * }} storage
  */
 export function createMockHandlers(storage) {
+  const trackingWindow =
+    storage.trackingWindow === undefined
+      ? resolveTrackingWindow()
+      : storage.trackingWindow;
+
   function memberPayload(member) {
     return clientMemberView(member, {
       adminGroupIds: MOCK_ADMIN_GROUP_IDS,
@@ -140,27 +148,28 @@ export function createMockHandlers(storage) {
       if (!gate.ok) return { ok: false, error: gate.error };
 
       const today = todayKey();
-      const dateCheck = selectedDate
-        ? validateDateKey(selectedDate, today)
-        : { ok: true, date: today };
-      if (!dateCheck.ok) return dateCheck;
+      const requested = String(selectedDate || today).trim();
+      if (!parseDateKey(requested)) {
+        return { ok: false, error: 'Date must be YYYY-MM-DD' };
+      }
 
       const rows = await storage.loadRows();
       const publicMember = publicizeMember(session.member, rows);
       await storage.setSession({ ...session, member: publicMember });
       const history = historyForContact(rows, publicMember.contactId);
-      const daySteps = findStepsForDate(rows, publicMember.contactId, dateCheck.date);
+      const daySteps = findStepsForDate(rows, publicMember.contactId, requested);
 
       return {
         ok: true,
         member: memberPayload(publicMember),
         today,
-        selectedDate: dateCheck.date,
+        selectedDate: requested,
         daySteps,
         todaySteps: findStepsForDate(rows, publicMember.contactId, today),
         history,
         canTrack: true,
         personalTotal: personalTotal(rows, publicMember.contactId),
+        trackingWindow,
       };
     },
 
@@ -179,7 +188,7 @@ export function createMockHandlers(storage) {
       if (!validated.ok) return validated;
 
       const today = todayKey();
-      const dateCheck = validateDateKey(dateInput ?? today, today);
+      const dateCheck = validateDateKey(dateInput ?? today, today, trackingWindow);
       if (!dateCheck.ok) return dateCheck;
 
       const rows = await storage.loadRows();
@@ -265,7 +274,7 @@ export function createMockHandlers(storage) {
       if (!validated.ok) return validated;
 
       const today = todayKey();
-      const dateCheck = validateDateKey(dateInput ?? today, today);
+      const dateCheck = validateDateKey(dateInput ?? today, today, trackingWindow);
       if (!dateCheck.ok) return dateCheck;
 
       if (contactId === undefined || contactId === null || contactId === '') {
@@ -332,22 +341,23 @@ export function createMockHandlers(storage) {
       }
 
       const today = todayKey();
-      const dateCheck = selectedDate
-        ? validateDateKey(selectedDate, today)
-        : { ok: true, date: today };
-      if (!dateCheck.ok) return dateCheck;
+      const requested = String(selectedDate || today).trim();
+      if (!parseDateKey(requested)) {
+        return { ok: false, error: 'Date must be YYYY-MM-DD' };
+      }
 
       const rows = await storage.loadRows();
       const history = historyForContact(rows, contactId);
-      const daySteps = findStepsForDate(rows, contactId, dateCheck.date);
+      const daySteps = findStepsForDate(rows, contactId, requested);
 
       return {
         ok: true,
         member: memberPayload(session.member),
         contactId: String(contactId),
-        selectedDate: dateCheck.date,
+        selectedDate: requested,
         daySteps,
         history,
+        trackingWindow,
       };
     },
 

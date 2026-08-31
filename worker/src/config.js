@@ -1,3 +1,4 @@
+import { resolveTrackingWindow } from '../../src/domain/dates.js';
 import { LEADERBOARD_LIMIT } from '../../src/domain/totals.js';
 import { parseAllowList } from '../../src/domain/membership.js';
 
@@ -5,6 +6,10 @@ import { parseAllowList } from '../../src/domain/membership.js';
  * @param {Record<string, string|undefined>} env
  */
 export function loadConfig(env) {
+  const trackingWindow = resolveTrackingWindow({
+    TRACKING_START: env.TRACKING_START,
+    TRACKING_END: env.TRACKING_END,
+  });
   return {
     waClientId: env.WA_CLIENT_ID || '',
     waClientSecret: env.WA_CLIENT_SECRET || '',
@@ -20,5 +25,6 @@ export function loadConfig(env) {
     leaderboardLimit: Number(env.LEADERBOARD_LIMIT) || LEADERBOARD_LIMIT,
     memberRefreshTtlMs:
       Math.max(60, Number(env.MEMBER_REFRESH_TTL_SEC) || 900) * 1000,
+    trackingWindow,
   };
 }

@@ -1,7 +1,1 @@
 date,contactId,email,name,steps,updated_at
-2026-08-07,1001,alex@example.com,Alex Rivera,8221,2026-08-09T17:34:20.903Z
-2026-08-08,1001,alex@example.com,Alex Rivera,9100,2026-08-09T09:15:43.964Z
-2026-08-07,1002,jordan@example.com,Jordan Lee,6500,2026-08-09T09:15:43.964Z
-2026-08-08,1002,jordan@example.com,Jordan Lee,10200,2026-08-09T09:15:43.964Z
-2026-08-09,1001,alex@example.com,Alex Rivera,42342,2026-08-09T17:33:27.253Z
-2026-08-09,1002,jordan@example.com,Jordan Lee,89899,2026-08-09T09:23:27.486Z
