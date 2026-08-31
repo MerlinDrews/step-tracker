@@ -350,7 +350,9 @@ function showTrackCta(options = {}) {
         ? "You're signed in, but this challenge is for Walkathon members. Join the Walkathon to start logging steps."
         : mode === 'visit'
           ? 'Your club membership is not active, so step tracking is unavailable.'
-          : 'Connect your club login to track daily steps for the Walkathon challenge.';
+          : part === 'all'
+            ? 'Connect your club login to track steps and see the leaderboard.'
+            : 'Connect your club login to track daily steps for the Walkathon challenge.';
   }
   if (els.trackCtaAction && els.joinLink) {
     els.joinLink.dataset.cta = mode;
@@ -385,8 +387,25 @@ function showTrackApp(member) {
   setMessage(els.formSuccess, '');
 }
 
+/** True when the combined page already shows a Connect CTA on the track panel. */
+function trackOwnsConnectCta() {
+  return part === 'all' && Boolean(els.sectionTrack) && !els.sectionTrack.hidden;
+}
+
 function showBoardGate(options = {}) {
   const { inactive = false, needsConnect = false } = options;
+
+  // Avoid a second identical Connect button when Walkathon already offers one.
+  if (needsConnect && trackOwnsConnectCta()) {
+    if (els.sectionLeaderboard) els.sectionLeaderboard.hidden = true;
+    if (els.boardGate) els.boardGate.hidden = true;
+    if (els.boardContent) els.boardContent.hidden = true;
+    return;
+  }
+
+  if (els.sectionLeaderboard && (part === 'all' || part === 'leaderboard')) {
+    els.sectionLeaderboard.hidden = false;
+  }
   if (els.boardGate) els.boardGate.hidden = false;
   if (els.boardContent) els.boardContent.hidden = true;
   if (els.boardGateLede) {
@@ -406,6 +425,9 @@ function showBoardGate(options = {}) {
 }
 
 function showBoardContent(totals) {
+  if (els.sectionLeaderboard && (part === 'all' || part === 'leaderboard')) {
+    els.sectionLeaderboard.hidden = false;
+  }
   if (els.boardGate) els.boardGate.hidden = true;
   if (els.boardContent) els.boardContent.hidden = false;
   setMessage(els.formErrorBoard, '');
@@ -757,7 +779,7 @@ function setupAuthUi() {
       updateFormLabels();
       renderCalendar();
       if (part === 'track' || part === 'all') showTrackCta();
-      if (part === 'leaderboard' || part === 'all') showBoardGate();
+      if (part === 'leaderboard' || part === 'all') showBoardGate({ needsConnect: true });
     });
   }
 }
@@ -913,6 +935,10 @@ async function init() {
     if (els.boardContent) els.boardContent.hidden = true;
     if (els.trackCta) els.trackCta.hidden = true;
     if (els.trackApp) els.trackApp.hidden = true;
+    // Combined page: defer leaderboard until after auth so guests only see one Connect CTA.
+    if (part === 'all' && els.sectionLeaderboard) {
+      els.sectionLeaderboard.hidden = true;
+    }
   }
 
   const showTotal = part === 'all' || part === 'total';
