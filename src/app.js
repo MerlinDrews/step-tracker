@@ -329,27 +329,44 @@ function applyDaySteps(daySteps) {
 }
 
 function showTrackCta(options = {}) {
-  const { unauthorizedGroup = false, errorMessage = '' } = options;
+  const { unauthorizedGroup = false, inactive = false, errorMessage = '' } = options;
   if (els.trackCta) els.trackCta.hidden = false;
   if (els.trackApp) els.trackApp.hidden = true;
   if (els.trackHeading) els.trackHeading.textContent = 'Walkathon';
 
+  const mode = unauthorizedGroup ? 'join' : inactive ? 'visit' : 'connect';
+
   if (els.trackCtaTitle) {
-    els.trackCtaTitle.textContent = unauthorizedGroup
-      ? 'Walkathon members only'
-      : 'Join the Walkathon!';
+    els.trackCtaTitle.textContent =
+      mode === 'join'
+        ? 'Walkathon members only'
+        : mode === 'visit'
+          ? 'Membership inactive'
+          : 'Log your steps';
   }
   if (els.trackCtaLede) {
-    els.trackCtaLede.textContent = unauthorizedGroup
-      ? "You're signed in, but this challenge is for Walkathon members. Ask a club admin to add you to the group."
-      : 'Log your daily steps with the club challenge. Participation is for Walkathon members.';
+    els.trackCtaLede.textContent =
+      mode === 'join'
+        ? "You're signed in, but this challenge is for Walkathon members. Join the Walkathon to start logging steps."
+        : mode === 'visit'
+          ? 'Your club membership is not active, so step tracking is unavailable.'
+          : 'Connect your club login to track daily steps for the Walkathon challenge.';
   }
   if (els.trackCtaAction && els.joinLink) {
-    els.joinLink.href = joinUrl();
-    els.joinLink.textContent = unauthorizedGroup ? 'Visit the club website' : 'Join the Walkathon!';
+    els.joinLink.dataset.cta = mode;
+    if (mode === 'join') {
+      els.joinLink.href = joinUrl();
+      els.joinLink.textContent = 'Join the Walkathon!';
+    } else if (mode === 'visit') {
+      els.joinLink.href = clubLoginUrl();
+      els.joinLink.textContent = 'Visit the club website';
+    } else {
+      els.joinLink.href = clubLoginUrl();
+      els.joinLink.textContent = 'Connect club login';
+    }
     els.trackCtaAction.hidden = api.mode !== 'prod';
   }
-  if (unauthorizedGroup && errorMessage) {
+  if ((unauthorizedGroup || inactive) && errorMessage) {
     setMessage(els.formErrorTrack, errorMessage);
   } else {
     setMessage(els.formErrorTrack, '');
@@ -668,7 +685,20 @@ function setupAuthUi() {
     }
   }
 
-  if (els.joinLink) els.joinLink.href = joinUrl();
+  if (els.joinLink) {
+    els.joinLink.href = clubLoginUrl();
+    if (api.mode === 'prod') {
+      els.joinLink.addEventListener('click', (event) => {
+        if (els.joinLink.dataset.cta !== 'connect') return;
+        event.preventDefault();
+        setLoading(true, 'Connecting to club login…');
+        Promise.resolve(api.startClubLogin()).catch((err) => {
+          setLoading(false);
+          setMessage(els.formErrorTrack, err?.message || String(err));
+        });
+      });
+    }
+  }
   if (els.boardLoginLink) {
     els.boardLoginLink.href = clubLoginUrl();
     if (api.mode === 'prod') {
@@ -688,7 +718,12 @@ function setupAuthUi() {
       const me = await api.getMe(selectedDate);
       if (!me.ok) {
         const groupDenied = /authorized member group/i.test(me.error || '');
-        showTrackCta({ unauthorizedGroup: groupDenied, errorMessage: me.error });
+        const inactive = /not active/i.test(me.error || '');
+        showTrackCta({
+          unauthorizedGroup: groupDenied,
+          inactive,
+          errorMessage: groupDenied || inactive ? me.error : '',
+        });
         return;
       }
       showTrackApp(me.member);
@@ -855,9 +890,11 @@ async function initTrack() {
     }
   } else {
     const groupDenied = /authorized member group/i.test(me.error || '');
+    const inactive = /not active/i.test(me.error || '');
     showTrackCta({
       unauthorizedGroup: groupDenied,
-      errorMessage: groupDenied ? me.error : '',
+      inactive,
+      errorMessage: groupDenied || inactive ? me.error : '',
     });
   }
 }
