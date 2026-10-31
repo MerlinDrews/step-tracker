@@ -192,5 +192,9 @@ export function createProdApi(config) {
     async adminParticipant(contactId, date) {
       return postAction('admin_participant', { contactId, date });
     },
+
+    async adminSetLeaderboardHidden(hidden) {
+      return postAction('admin_set_leaderboard_hidden', { hidden: Boolean(hidden) });
+    },
   };
 }

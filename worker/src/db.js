@@ -167,3 +167,31 @@ export async function writeAuditLog(db, row) {
     )
     .run();
 }
+
+const LEADERBOARD_HIDDEN_KEY = 'leaderboard_hidden';
+
+export async function getAppSetting(db, key, defaultValue = null) {
+  const row = await db
+    .prepare('SELECT value FROM app_settings WHERE key = ?')
+    .bind(String(key))
+    .first();
+  return row ? String(row.value) : defaultValue;
+}
+
+export async function setAppSetting(db, key, value) {
+  await db
+    .prepare(
+      `INSERT INTO app_settings (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    )
+    .bind(String(key), String(value))
+    .run();
+}
+
+export async function isLeaderboardHidden(db) {
+  return (await getAppSetting(db, LEADERBOARD_HIDDEN_KEY, '0')) === '1';
+}
+
+export async function setLeaderboardHidden(db, hidden) {
+  await setAppSetting(db, LEADERBOARD_HIDDEN_KEY, hidden ? '1' : '0');
+}

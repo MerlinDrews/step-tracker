@@ -7,6 +7,7 @@ describe('rateLimit', () => {
       [
         'admin_contributors',
         'admin_participant',
+        'admin_set_leaderboard_hidden',
         'admin_set_steps',
         'auth_exchange',
         'leaderboard',

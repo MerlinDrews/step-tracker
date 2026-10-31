@@ -190,11 +190,38 @@ describe('createMockApi', () => {
     expect(res.error).toMatch(/admin|configured/i);
   });
 
+  it('lets admin hide and show the leaderboard for everyone', async () => {
+    await api.loginAs('admin');
+    const hidden = await api.adminSetLeaderboardHidden(true);
+    expect(hidden.ok).toBe(true);
+    expect(hidden.leaderboardHidden).toBe(true);
+
+    const pub = await api.getPublicTotal();
+    expect(pub.leaderboardHidden).toBe(true);
+
+    const board = await api.getLeaderboard();
+    expect(board.ok).toBe(true);
+    expect(board.leaderboardHidden).toBe(true);
+
+    const shown = await api.adminSetLeaderboardHidden(false);
+    expect(shown.ok).toBe(true);
+    expect(shown.leaderboardHidden).toBe(false);
+    expect((await api.getPublicTotal()).leaderboardHidden).toBe(false);
+  });
+
+  it('rejects leaderboard hide toggle from non-admin members', async () => {
+    await api.loginAs('alex');
+    const res = await api.adminSetLeaderboardHidden(true);
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/admin|configured/i);
+  });
+
   it('requires session for track and admin endpoints', async () => {
     expect((await api.getMe()).ok).toBe(false);
     expect((await api.adminContributors()).ok).toBe(false);
     expect((await api.adminParticipant('1001')).ok).toBe(false);
     expect((await api.adminSetSteps('1001', 100)).ok).toBe(false);
+    expect((await api.adminSetLeaderboardHidden(true)).ok).toBe(false);
   });
 
   it('rejects logging outside the tracking window when configured', async () => {

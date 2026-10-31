@@ -30,6 +30,8 @@ import {
   getHistoryForContact,
   getLeaderboardTotals,
   getPersonalTotal,
+  isLeaderboardHidden,
+  setLeaderboardHidden,
   updateContactDisplayNames,
   upsertDaySteps,
   writeAuditLog,
@@ -152,7 +154,13 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (rateLimited(action, ctx)) {
         return jsonErr('Too many requests. Try again shortly.', 429, corsHeaders);
       }
-      return jsonOk({ totalSteps: await getClubTotal(db) }, corsHeaders);
+      return jsonOk(
+        {
+          totalSteps: await getClubTotal(db),
+          leaderboardHidden: await isLeaderboardHidden(db),
+        },
+        corsHeaders,
+      );
     }
 
     if (action === 'auth_exchange' && method === 'POST') {
@@ -190,6 +198,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
         {
           member: memberPayload(member, config),
           totals,
+          leaderboardHidden: await isLeaderboardHidden(db),
           ...(await trackExtras(db, member, config)),
         },
         corsHeaders,
@@ -444,6 +453,48 @@ export async function handleAction(action, method, body, config, db, ctx) {
         {
           member: memberPayload(member, config),
           contributors: toAdminContributors(withPublicNames(await getAllContributors(db))),
+          leaderboardHidden: await isLeaderboardHidden(db),
+        },
+        corsHeaders,
+      );
+    }
+
+    if (action === 'admin_set_leaderboard_hidden' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many admin edits. Try again shortly.', 429, corsHeaders);
+      }
+      const member = await resolveMember(body, config);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
+      const adminGate = assertAdminMember(
+        member,
+        config.adminGroupIds,
+        config.adminGroupNames,
+      );
+      if (!adminGate.ok) return jsonErr(adminGate.error, 403, corsHeaders);
+
+      if (typeof body?.hidden !== 'boolean') {
+        return jsonErr('hidden must be a boolean', 400, corsHeaders);
+      }
+
+      const hidden = body.hidden;
+      const previous = await isLeaderboardHidden(db);
+      await setLeaderboardHidden(db, hidden);
+      const updated_at = new Date().toISOString();
+      await writeAuditLog(db, {
+        at: updated_at,
+        action: 'admin_set_leaderboard_hidden',
+        target_contact_id: null,
+        target_date: null,
+        old_steps: previous ? 1 : 0,
+        new_steps: hidden ? 1 : 0,
+        actor_contact_id: member.contactId,
+        actor_name: member.name,
+      });
+
+      return jsonOk(
+        {
+          member: memberPayload(member, config),
+          leaderboardHidden: hidden,
         },
         corsHeaders,
       );
