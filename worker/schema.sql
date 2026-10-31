@@ -26,3 +26,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
   actor_contact_id TEXT,
   actor_name TEXT
 );
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);

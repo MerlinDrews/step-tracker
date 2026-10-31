@@ -32,6 +32,8 @@ let viewMonth = (() => {
 let clubTotalSteps = null;
 /** @type {boolean} */
 let isAdmin = false;
+/** Global admin flag — when true, the leaderboard is hidden for all visitors. */
+let leaderboardHidden = false;
 
 /** @type {Array<{ contactId: string, name: string, email?: string, steps: number }>} */
 let adminContributors = [];
@@ -124,6 +126,7 @@ const els = {
   adminSteps: $('admin-steps'),
   adminStepsLabel: $('admin-steps-label'),
   adminSaveBtn: $('admin-save-btn'),
+  adminLeaderboardToggle: $('admin-leaderboard-toggle'),
   adminFormError: $('admin-form-error'),
   adminFormSuccess: $('admin-form-success'),
   trackRangeHint: $('track-range-hint'),
@@ -392,8 +395,36 @@ function trackOwnsConnectCta() {
   return part === 'all' && Boolean(els.sectionTrack) && !els.sectionTrack.hidden;
 }
 
+function updateAdminLeaderboardToggle() {
+  if (!els.adminLeaderboardToggle) return;
+  els.adminLeaderboardToggle.textContent = leaderboardHidden
+    ? 'Show leaderboard'
+    : 'Hide leaderboard';
+}
+
+/**
+ * Apply the global admin hide flag. When hidden, the leaderboard section is
+ * removed from view for every visitor (admins keep the toggle in Admin).
+ * @param {boolean} [hidden]
+ */
+function applyLeaderboardHidden(hidden) {
+  if (hidden !== undefined) leaderboardHidden = Boolean(hidden);
+  updateAdminLeaderboardToggle();
+  if (!(part === 'all' || part === 'leaderboard') || !els.sectionLeaderboard) return;
+  if (leaderboardHidden) {
+    els.sectionLeaderboard.hidden = true;
+    if (els.boardGate) els.boardGate.hidden = true;
+    if (els.boardContent) els.boardContent.hidden = true;
+  }
+}
+
 function showBoardGate(options = {}) {
   const { inactive = false, needsConnect = false } = options;
+
+  if (leaderboardHidden) {
+    applyLeaderboardHidden(true);
+    return;
+  }
 
   // Avoid a second identical Connect button when Walkathon already offers one.
   if (needsConnect && trackOwnsConnectCta()) {
@@ -425,6 +456,10 @@ function showBoardGate(options = {}) {
 }
 
 function showBoardContent(totals) {
+  if (leaderboardHidden) {
+    applyLeaderboardHidden(true);
+    return;
+  }
   if (els.sectionLeaderboard && (part === 'all' || part === 'leaderboard')) {
     els.sectionLeaderboard.hidden = false;
   }
@@ -442,6 +477,7 @@ function maybeShowAdmin(member) {
   }
 
   els.sectionAdmin.hidden = false;
+  updateAdminLeaderboardToggle();
   updateAdminFormLabels();
   renderAdminCalendar();
 }
@@ -532,6 +568,9 @@ async function refreshAdminContributors() {
   const res = await api.adminContributors();
   if (!res.ok) return;
   adminContributors = res.contributors || [];
+  if (typeof res.leaderboardHidden === 'boolean') {
+    applyLeaderboardHidden(res.leaderboardHidden);
+  }
   populateAdminParticipants();
   if (els.adminParticipant?.value) {
     await loadAdminParticipant();
@@ -556,6 +595,35 @@ function populateAdminParticipants() {
 
 function setupAdminPanel() {
   if (!els.adminSaveBtn || typeof api.adminSetSteps !== 'function') return;
+
+  if (els.adminLeaderboardToggle && typeof api.adminSetLeaderboardHidden === 'function') {
+    els.adminLeaderboardToggle.addEventListener('click', async () => {
+      setMessage(els.adminFormError, '');
+      setMessage(els.adminFormSuccess, '');
+      els.adminLeaderboardToggle.disabled = true;
+      setLoading(true, leaderboardHidden ? 'Showing leaderboard…' : 'Hiding leaderboard…');
+      try {
+        const res = await api.adminSetLeaderboardHidden(!leaderboardHidden);
+        if (!res.ok) {
+          setMessage(els.adminFormError, res.error);
+          return;
+        }
+        applyLeaderboardHidden(res.leaderboardHidden);
+        if (leaderboardHidden) {
+          setMessage(els.adminFormSuccess, 'Leaderboard hidden for all visitors.');
+        } else {
+          setMessage(els.adminFormSuccess, 'Leaderboard visible again for all visitors.');
+          if (part === 'all' || part === 'leaderboard') {
+            await initLeaderboard();
+            await finishAdminInit();
+          }
+        }
+      } finally {
+        els.adminLeaderboardToggle.disabled = false;
+        setLoading(false);
+      }
+    });
+  }
 
   if (els.adminParticipant) {
     els.adminParticipant.addEventListener('change', async () => {
@@ -634,16 +702,24 @@ function setupAdminPanel() {
       renderAdminCalendar();
       if (res.totals) {
         renderPublicTotal(res.totals.totalSteps);
-        if (part === 'all' || part === 'leaderboard') {
+        if (typeof res.leaderboardHidden === 'boolean') {
+          applyLeaderboardHidden(res.leaderboardHidden);
+        }
+        if (!leaderboardHidden && (part === 'all' || part === 'leaderboard')) {
           showBoardContent(res.totals);
         }
         await refreshAdminContributors();
       } else {
         await refreshAdminContributors();
         if (part === 'all' || part === 'total') await initTotal();
-        if (part === 'all' || part === 'leaderboard') {
+        if (!leaderboardHidden && (part === 'all' || part === 'leaderboard')) {
           const board = await api.getLeaderboard();
-          if (board.ok) showBoardContent(board.totals);
+          if (board.ok) {
+            if (typeof board.leaderboardHidden === 'boolean') {
+              applyLeaderboardHidden(board.leaderboardHidden);
+            }
+            if (!leaderboardHidden) showBoardContent(board.totals);
+          }
         }
       }
     } finally {
@@ -848,14 +924,22 @@ function setupForm() {
       // Keep club total + leaderboard in sync with the save response (or refetch).
       if (res.totals) {
         renderPublicTotal(res.totals.totalSteps, res.personalTotal);
-        if (part === 'all' || part === 'leaderboard') {
+        if (typeof res.leaderboardHidden === 'boolean') {
+          applyLeaderboardHidden(res.leaderboardHidden);
+        }
+        if (!leaderboardHidden && (part === 'all' || part === 'leaderboard')) {
           showBoardContent(res.totals);
         }
       } else if (part === 'all' || part === 'total' || part === 'leaderboard') {
         await initTotal();
-        if (part === 'all' || part === 'leaderboard') {
+        if (!leaderboardHidden && (part === 'all' || part === 'leaderboard')) {
           const board = await api.getLeaderboard();
-          if (board.ok) showBoardContent(board.totals);
+          if (board.ok) {
+            if (typeof board.leaderboardHidden === 'boolean') {
+              applyLeaderboardHidden(board.leaderboardHidden);
+            }
+            if (!leaderboardHidden) showBoardContent(board.totals);
+          }
         }
       }
     } finally {
@@ -867,8 +951,14 @@ function setupForm() {
 
 async function initTotal() {
   const res = await api.getPublicTotal();
-  if (res.ok) renderPublicTotal(res.totalSteps);
-  else renderPublicTotal(0);
+  if (res.ok) {
+    renderPublicTotal(res.totalSteps);
+    if (typeof res.leaderboardHidden === 'boolean') {
+      applyLeaderboardHidden(res.leaderboardHidden);
+    }
+  } else {
+    renderPublicTotal(0);
+  }
 }
 
 async function initLeaderboard() {
@@ -878,9 +968,12 @@ async function initLeaderboard() {
   const board = await api.getLeaderboard();
 
   if (board.ok) {
-    showBoardContent(board.totals);
+    if (typeof board.leaderboardHidden === 'boolean') {
+      applyLeaderboardHidden(board.leaderboardHidden);
+    }
     maybeShowAdmin(board.member);
     renderPublicTotal(board.totals.totalSteps, board.canTrack ? board.personalTotal : null);
+    if (!leaderboardHidden) showBoardContent(board.totals);
   } else {
     const notSignedIn = /not signed in/i.test(board.error || '');
     showBoardGate({
@@ -942,8 +1035,10 @@ async function init() {
   }
 
   const showTotal = part === 'all' || part === 'total';
+  // Also fetch public total when the board may show — it carries leaderboardHidden.
+  const needBoardFlag = part === 'all' || part === 'leaderboard';
   // Public total needs no auth — start immediately (even during OAuth below).
-  const totalPromise = showTotal ? initTotal() : null;
+  const totalPromise = showTotal || needBoardFlag ? initTotal() : null;
 
   setLoading(true, 'Loading step tracker…');
   try {
@@ -956,11 +1051,9 @@ async function init() {
     }
 
     if (part === 'all') {
-      await Promise.all([
-        totalPromise ?? Promise.resolve(),
-        initLeaderboard(),
-        initTrack(),
-      ]);
+      // Resolve hide flag before rendering the board to avoid a brief flash.
+      await (totalPromise ?? Promise.resolve());
+      await Promise.all([initLeaderboard(), initTrack()]);
       await finishAdminInit();
       return;
     }
@@ -971,6 +1064,7 @@ async function init() {
     }
 
     if (part === 'leaderboard') {
+      await (totalPromise ?? Promise.resolve());
       await initLeaderboard();
       await finishAdminInit();
       return;

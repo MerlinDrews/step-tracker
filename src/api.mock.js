@@ -9,6 +9,7 @@ export function createMockApi(initialRows = defaultSeedRows()) {
   let rows = initialRows.map((r) => ({ ...r }));
   let token = null;
   let member = null;
+  let leaderboardHidden = false;
 
   const api = createMockHandlers({
     loadRows: () => rows,
@@ -20,6 +21,10 @@ export function createMockApi(initialRows = defaultSeedRows()) {
       token = session.token;
       member = session.member;
     },
+    getLeaderboardHidden: () => leaderboardHidden,
+    setLeaderboardHidden: (hidden) => {
+      leaderboardHidden = Boolean(hidden);
+    },
     // Unit tests control dates freely; local CSV server uses the real window.
     trackingWindow: null,
   });
@@ -30,9 +35,10 @@ export function createMockApi(initialRows = defaultSeedRows()) {
       rows = nextRows.map((r) => ({ ...r }));
       token = null;
       member = null;
+      leaderboardHidden = false;
     },
     _getState() {
-      return { sessionToken: token, member, rows };
+      return { sessionToken: token, member, rows, leaderboardHidden };
     },
   };
 }

@@ -23,6 +23,8 @@ const MIME = {
 
 /** @type {Map<string, object>} */
 const sessions = new Map();
+/** Shared across requests so admin hide/show applies to all local users. */
+let leaderboardHidden = false;
 
 async function ensureCsv() {
   await fs.mkdir(path.dirname(CSV_PATH), { recursive: true });
@@ -63,6 +65,10 @@ function createRequestStorage(req) {
       if (token && member) {
         sessions.set(token, member);
       }
+    },
+    getLeaderboardHidden: () => leaderboardHidden,
+    setLeaderboardHidden: (hidden) => {
+      leaderboardHidden = Boolean(hidden);
     },
   };
 }
@@ -138,6 +144,12 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && route === '/admin/participant') {
     const body = await readJson(req);
     const result = await handlers.adminParticipant(body.contactId, body.date);
+    const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
+    return sendJson(res, status, result);
+  }
+  if (req.method === 'POST' && route === '/admin/leaderboard-hidden') {
+    const body = await readJson(req);
+    const result = await handlers.adminSetLeaderboardHidden(body.hidden);
     const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
     return sendJson(res, status, result);
   }

@@ -37,6 +37,8 @@ import {
  *   saveRows: (rows: Array<object>) => void | Promise<void>,
  *   getSession: () => ({ token: string|null, member: object|null }) | Promise<...>,
  *   setSession: (session: { token: string|null, member: object|null }) => void | Promise<void>,
+ *   getLeaderboardHidden?: () => boolean | Promise<boolean>,
+ *   setLeaderboardHidden?: (hidden: boolean) => void | Promise<void>,
  *   trackingWindow?: { start: string, end: string } | null,
  * }} storage
  */
@@ -45,6 +47,26 @@ export function createMockHandlers(storage) {
     storage.trackingWindow === undefined
       ? resolveTrackingWindow()
       : storage.trackingWindow;
+
+  /** Fallback when the storage adapter does not persist the flag. */
+  let leaderboardHiddenFallback = false;
+
+  async function readLeaderboardHidden() {
+    if (typeof storage.getLeaderboardHidden === 'function') {
+      return Boolean(await storage.getLeaderboardHidden());
+    }
+    return leaderboardHiddenFallback;
+  }
+
+  async function writeLeaderboardHidden(hidden) {
+    const next = Boolean(hidden);
+    if (typeof storage.setLeaderboardHidden === 'function') {
+      await storage.setLeaderboardHidden(next);
+    } else {
+      leaderboardHiddenFallback = next;
+    }
+    return next;
+  }
 
   function memberPayload(member) {
     return clientMemberView(member, {
@@ -239,7 +261,11 @@ export function createMockHandlers(storage) {
     async getPublicTotal() {
       const rows = await storage.loadRows();
       const totals = aggregateTotals(rows);
-      return { ok: true, totalSteps: totals.totalSteps };
+      return {
+        ok: true,
+        totalSteps: totals.totalSteps,
+        leaderboardHidden: await readLeaderboardHidden(),
+      };
     },
 
     /** Members-only: full leaderboard. */
@@ -255,6 +281,7 @@ export function createMockHandlers(storage) {
         ok: true,
         member: memberPayload(session.member),
         totals: leaderboardTotals(rows),
+        leaderboardHidden: await readLeaderboardHidden(),
         ...trackPayload(rows, session.member),
       };
     },
@@ -378,6 +405,29 @@ export function createMockHandlers(storage) {
         ok: true,
         member: memberPayload(session.member),
         contributors: toAdminContributors(withPublicNames(totals.contributors)),
+        leaderboardHidden: await readLeaderboardHidden(),
+      };
+    },
+
+    async adminSetLeaderboardHidden(hidden) {
+      const session = await storage.getSession();
+      const sessionCheck = assertSession(session.token);
+      if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
+      const adminGate = assertAdminMember(
+        session.member,
+        MOCK_ADMIN_GROUP_IDS,
+        MOCK_ADMIN_GROUP_NAMES,
+      );
+      if (!adminGate.ok) return { ok: false, error: adminGate.error };
+
+      if (typeof hidden !== 'boolean') {
+        return { ok: false, error: 'hidden must be a boolean' };
+      }
+
+      return {
+        ok: true,
+        member: memberPayload(session.member),
+        leaderboardHidden: await writeLeaderboardHidden(hidden),
       };
     },
   };

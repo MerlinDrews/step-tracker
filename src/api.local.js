@@ -97,5 +97,12 @@ export function createLocalHttpApi() {
         body: { contactId, date },
       });
     },
+
+    async adminSetLeaderboardHidden(hidden) {
+      return request('/admin/leaderboard-hidden', {
+        method: 'POST',
+        body: { hidden: Boolean(hidden) },
+      });
+    },
   };
 }
