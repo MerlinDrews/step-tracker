@@ -44,6 +44,7 @@ export {
   formatDisplayName,
   parsePersonName,
   resolveNameParts,
+  changedDisplayNames,
   uniqueDisplayNames,
   toLeaderboardContributors,
   withPublicNames,

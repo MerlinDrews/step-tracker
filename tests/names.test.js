@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  changedDisplayNames,
   formatDisplayName,
   parsePersonName,
   toLeaderboardContributors,
@@ -27,6 +28,46 @@ describe('formatDisplayName', () => {
     expect(formatDisplayName('Alex', 'Rivera', 2)).toBe('Alex Ri.');
     expect(formatDisplayName('Alex', 'Rivera', 6)).toBe('Alex Rivera');
     expect(formatDisplayName('Alex', '', 1)).toBe('Alex');
+  });
+});
+
+describe('changedDisplayNames', () => {
+  it('returns empty when every desired name already matches storage', () => {
+    const desired = new Map([
+      ['1', 'Alex R.'],
+      ['2', 'Jordan L.'],
+    ]);
+    const stored = new Map([
+      ['1', 'Alex R.'],
+      ['2', 'Jordan L.'],
+    ]);
+    expect([...changedDisplayNames(desired, stored).entries()]).toEqual([]);
+  });
+
+  it('skips brand-new contacts with no stored name (upsert already wrote their day)', () => {
+    const desired = new Map([
+      ['1', 'Alex R.'],
+      ['99', 'Sam S.'],
+    ]);
+    const stored = new Map([['1', 'Alex R.']]);
+    expect([...changedDisplayNames(desired, stored).entries()]).toEqual([]);
+  });
+
+  it('includes only contacts whose public name must change (disambiguation)', () => {
+    const desired = new Map([
+      ['1', 'Alex Ri.'],
+      ['2', 'Alex Re.'],
+      ['3', 'Jordan L.'],
+    ]);
+    const stored = new Map([
+      ['1', 'Alex R.'],
+      ['2', 'Alex R.'],
+      ['3', 'Jordan L.'],
+    ]);
+    expect([...changedDisplayNames(desired, stored).entries()]).toEqual([
+      ['1', 'Alex Ri.'],
+      ['2', 'Alex Re.'],
+    ]);
   });
 });
 

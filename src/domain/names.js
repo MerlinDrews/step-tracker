@@ -52,6 +52,36 @@ export function resolveNameParts(person) {
 }
 
 /**
+ * Contacts whose desired public display name differs from what is already stored.
+ * Skips ids with no stored name (new participants — the day upsert already wrote theirs).
+ *
+ * @param {Map<string, string>|Iterable<[string, string]>} desiredByContactId
+ * @param {Map<string, string>|Record<string, string>} storedNameByContactId
+ * @returns {Map<string, string>}
+ */
+export function changedDisplayNames(desiredByContactId, storedNameByContactId) {
+  const desired =
+    desiredByContactId instanceof Map
+      ? desiredByContactId
+      : new Map(desiredByContactId || []);
+  const stored =
+    storedNameByContactId instanceof Map
+      ? storedNameByContactId
+      : new Map(Object.entries(storedNameByContactId || {}));
+
+  /** @type {Map<string, string>} */
+  const out = new Map();
+  for (const [contactId, name] of desired.entries()) {
+    const id = String(contactId);
+    const next = String(name ?? '');
+    if (!stored.has(id)) continue;
+    const prev = String(stored.get(id) ?? '');
+    if (prev !== next) out.set(id, next);
+  }
+  return out;
+}
+
+/**
  * @param {Array<{ contactId: string|number, firstName?: string, lastName?: string, name?: string }>} people
  * @returns {Map<string, string>} contactId → public display name
  */
