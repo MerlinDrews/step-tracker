@@ -1,4 +1,8 @@
-import { toLeaderboardContributors, withPublicNames } from '../../src/domain/names.js';
+import {
+  changedDisplayNames,
+  toLeaderboardContributors,
+  withPublicNames,
+} from '../../src/domain/names.js';
 
 /**
  * @typedef {import('@cloudflare/workers-types').D1Database} D1Database
@@ -135,18 +139,36 @@ export async function upsertDaySteps(db, entry) {
 }
 
 /**
- * Rewrite public `name` for every row of each contact (keeps disambiguation in sync).
+ * Persist public display names that actually changed.
+ *
+ * Previously this rewrote every day-row for every participant on each log, which
+ * burned D1 rows-written (free tier 100k/day) after a few dozen saves.
+ * Now only contacts whose computed name differs from storage are updated, and
+ * the UPDATE skips rows that already have the target value.
+ *
  * @param {D1Database} db
  * @param {Map<string, string>} displayByContactId
+ * @returns {Promise<number>} number of contacts queued for update
  */
 export async function updateContactDisplayNames(db, displayByContactId) {
+  const existing = await getContactNameParts(db);
+  /** @type {Map<string, string>} */
+  const stored = new Map(
+    existing.map((p) => [String(p.contactId), String(p.name || '')]),
+  );
+  const toSync = changedDisplayNames(displayByContactId, stored);
   const stmts = [];
-  for (const [contactId, name] of displayByContactId.entries()) {
+  for (const [contactId, name] of toSync.entries()) {
     stmts.push(
-      db.prepare('UPDATE steps SET name = ? WHERE contact_id = ?').bind(name, contactId),
+      db
+        .prepare(
+          'UPDATE steps SET name = ? WHERE contact_id = ? AND name IS NOT ?',
+        )
+        .bind(name, contactId, name),
     );
   }
   if (stmts.length) await db.batch(stmts);
+  return toSync.size;
 }
 
 export async function writeAuditLog(db, row) {
