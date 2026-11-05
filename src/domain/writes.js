@@ -1,4 +1,4 @@
-/** Shown when STEPS_WRITES_ENABLED is off (challenge locked / read-only). */
+/** Shown when an admin has closed step logging (read-only challenge). */
 export const STEPS_WRITES_DISABLED_MESSAGE =
   'Step logging is closed. Totals and the leaderboard are still available to view.';
 

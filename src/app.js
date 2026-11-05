@@ -6,7 +6,6 @@ import {
   formatSteps,
   formatTrackingWindowLabel,
   parseDateKey,
-  parseStepsWritesEnabled,
   resolveTrackingWindow,
   STEPS_WRITES_DISABLED_MESSAGE,
   todayKey,
@@ -131,6 +130,7 @@ const els = {
   adminStepsLabel: $('admin-steps-label'),
   adminSaveBtn: $('admin-save-btn'),
   adminLeaderboardToggle: $('admin-leaderboard-toggle'),
+  adminWritesToggle: $('admin-writes-toggle'),
   adminFormError: $('admin-form-error'),
   adminFormSuccess: $('admin-form-success'),
   writesClosedHint: $('writes-closed-hint'),
@@ -139,12 +139,18 @@ const els = {
   adminRangeHint: $('admin-range-hint'),
 };
 
+function updateAdminWritesToggle() {
+  if (!els.adminWritesToggle) return;
+  els.adminWritesToggle.textContent = stepsWritesEnabled
+    ? 'Close step logging'
+    : 'Open step logging';
+}
+
 function applyStepsWritesEnabled(enabled) {
   if (typeof enabled === 'boolean') {
     stepsWritesEnabled = enabled;
-  } else if (Object.prototype.hasOwnProperty.call(getConfig(), 'STEPS_WRITES_ENABLED')) {
-    stepsWritesEnabled = parseStepsWritesEnabled(getConfig().STEPS_WRITES_ENABLED, true);
   }
+  updateAdminWritesToggle();
 
   if (els.saveBtn) {
     els.saveBtn.disabled = !stepsWritesEnabled;
@@ -519,6 +525,7 @@ function maybeShowAdmin(member) {
 
   els.sectionAdmin.hidden = false;
   updateAdminLeaderboardToggle();
+  updateAdminWritesToggle();
   updateAdminFormLabels();
   applyStepsWritesEnabled(stepsWritesEnabled);
   renderAdminCalendar();
@@ -616,6 +623,9 @@ async function refreshAdminContributors() {
   if (typeof res.leaderboardHidden === 'boolean') {
     applyLeaderboardHidden(res.leaderboardHidden);
   }
+  if (typeof res.stepsWritesEnabled === 'boolean') {
+    applyStepsWritesEnabled(res.stepsWritesEnabled);
+  }
   populateAdminParticipants();
   if (els.adminParticipant?.value) {
     await loadAdminParticipant();
@@ -654,6 +664,9 @@ function setupAdminPanel() {
           return;
         }
         applyLeaderboardHidden(res.leaderboardHidden);
+        if (typeof res.stepsWritesEnabled === 'boolean') {
+          applyStepsWritesEnabled(res.stepsWritesEnabled);
+        }
         if (leaderboardHidden) {
           setMessage(els.adminFormSuccess, 'Leaderboard hidden for all visitors.');
         } else {
@@ -665,6 +678,39 @@ function setupAdminPanel() {
         }
       } finally {
         els.adminLeaderboardToggle.disabled = false;
+        setLoading(false);
+      }
+    });
+  }
+
+  if (els.adminWritesToggle && typeof api.adminSetStepsWritesEnabled === 'function') {
+    els.adminWritesToggle.addEventListener('click', async () => {
+      setMessage(els.adminFormError, '');
+      setMessage(els.adminFormSuccess, '');
+      els.adminWritesToggle.disabled = true;
+      setLoading(
+        true,
+        stepsWritesEnabled ? 'Closing step logging…' : 'Opening step logging…',
+      );
+      try {
+        const res = await api.adminSetStepsWritesEnabled(!stepsWritesEnabled);
+        if (!res.ok) {
+          setMessage(els.adminFormError, res.error);
+          return;
+        }
+        applyStepsWritesEnabled(res.stepsWritesEnabled);
+        updateAdminFormLabels();
+        if (typeof res.leaderboardHidden === 'boolean') {
+          applyLeaderboardHidden(res.leaderboardHidden);
+        }
+        setMessage(
+          els.adminFormSuccess,
+          stepsWritesEnabled
+            ? 'Step logging is open again for members and admins.'
+            : 'Step logging closed for everyone.',
+        );
+      } finally {
+        els.adminWritesToggle.disabled = false;
         setLoading(false);
       }
     });
@@ -1029,6 +1075,9 @@ async function initLeaderboard() {
     if (typeof board.leaderboardHidden === 'boolean') {
       applyLeaderboardHidden(board.leaderboardHidden);
     }
+    if (typeof board.stepsWritesEnabled === 'boolean') {
+      applyStepsWritesEnabled(board.stepsWritesEnabled);
+    }
     maybeShowAdmin(board.member);
     renderPublicTotal(board.totals.totalSteps, board.canTrack ? board.personalTotal : null);
     if (!leaderboardHidden) showBoardContent(board.totals);
@@ -1077,7 +1126,6 @@ async function initTrack() {
 
 async function init() {
   showPartSections();
-  applyStepsWritesEnabled();
 
   setupAuthUi();
   setupCalendar();

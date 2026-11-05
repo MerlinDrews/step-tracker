@@ -10,7 +10,6 @@ import {
   historyForContact,
   leaderboardTotals,
   parseDateKey,
-  parseStepsWritesEnabled,
   personalTotal,
   resolveNameParts,
   resolveTrackingWindow,
@@ -41,8 +40,9 @@ import {
  *   setSession: (session: { token: string|null, member: object|null }) => void | Promise<void>,
  *   getLeaderboardHidden?: () => boolean | Promise<boolean>,
  *   setLeaderboardHidden?: (hidden: boolean) => void | Promise<void>,
+ *   getStepsWritesEnabled?: () => boolean | Promise<boolean>,
+ *   setStepsWritesEnabled?: (enabled: boolean) => void | Promise<void>,
  *   trackingWindow?: { start: string, end: string } | null,
- *   stepsWritesEnabled?: boolean | string,
  * }} storage
  */
 export function createMockHandlers(storage) {
@@ -50,13 +50,11 @@ export function createMockHandlers(storage) {
     storage.trackingWindow === undefined
       ? resolveTrackingWindow()
       : storage.trackingWindow;
-  const stepsWritesEnabled = parseStepsWritesEnabled(
-    storage.stepsWritesEnabled,
-    true,
-  );
 
   /** Fallback when the storage adapter does not persist the flag. */
   let leaderboardHiddenFallback = false;
+  /** Default on — matches D1 app_settings default. */
+  let stepsWritesEnabledFallback = true;
 
   async function readLeaderboardHidden() {
     if (typeof storage.getLeaderboardHidden === 'function') {
@@ -71,6 +69,23 @@ export function createMockHandlers(storage) {
       await storage.setLeaderboardHidden(next);
     } else {
       leaderboardHiddenFallback = next;
+    }
+    return next;
+  }
+
+  async function readStepsWritesEnabled() {
+    if (typeof storage.getStepsWritesEnabled === 'function') {
+      return Boolean(await storage.getStepsWritesEnabled());
+    }
+    return stepsWritesEnabledFallback;
+  }
+
+  async function writeStepsWritesEnabled(enabled) {
+    const next = Boolean(enabled);
+    if (typeof storage.setStepsWritesEnabled === 'function') {
+      await storage.setStepsWritesEnabled(next);
+    } else {
+      stepsWritesEnabledFallback = next;
     }
     return next;
   }
@@ -199,12 +214,12 @@ export function createMockHandlers(storage) {
         canTrack: true,
         personalTotal: personalTotal(rows, publicMember.contactId),
         trackingWindow,
-        stepsWritesEnabled,
+        stepsWritesEnabled: await readStepsWritesEnabled(),
       };
     },
 
     async logSteps(stepsInput, dateInput) {
-      const writesGate = assertStepsWritesEnabled(stepsWritesEnabled);
+      const writesGate = assertStepsWritesEnabled(await readStepsWritesEnabled());
       if (!writesGate.ok) return { ok: false, error: writesGate.error };
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);
@@ -275,7 +290,7 @@ export function createMockHandlers(storage) {
         ok: true,
         totalSteps: totals.totalSteps,
         leaderboardHidden: await readLeaderboardHidden(),
-        stepsWritesEnabled,
+        stepsWritesEnabled: await readStepsWritesEnabled(),
       };
     },
 
@@ -293,12 +308,13 @@ export function createMockHandlers(storage) {
         member: memberPayload(session.member),
         totals: leaderboardTotals(rows),
         leaderboardHidden: await readLeaderboardHidden(),
+        stepsWritesEnabled: await readStepsWritesEnabled(),
         ...trackPayload(rows, session.member),
       };
     },
 
     async adminSetSteps(contactId, stepsInput, dateInput, profile = {}) {
-      const writesGate = assertStepsWritesEnabled(stepsWritesEnabled);
+      const writesGate = assertStepsWritesEnabled(await readStepsWritesEnabled());
       if (!writesGate.ok) return { ok: false, error: writesGate.error };
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);
@@ -419,6 +435,7 @@ export function createMockHandlers(storage) {
         member: memberPayload(session.member),
         contributors: toAdminContributors(withPublicNames(totals.contributors)),
         leaderboardHidden: await readLeaderboardHidden(),
+        stepsWritesEnabled: await readStepsWritesEnabled(),
       };
     },
 
@@ -441,6 +458,30 @@ export function createMockHandlers(storage) {
         ok: true,
         member: memberPayload(session.member),
         leaderboardHidden: await writeLeaderboardHidden(hidden),
+        stepsWritesEnabled: await readStepsWritesEnabled(),
+      };
+    },
+
+    async adminSetStepsWritesEnabled(enabled) {
+      const session = await storage.getSession();
+      const sessionCheck = assertSession(session.token);
+      if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
+      const adminGate = assertAdminMember(
+        session.member,
+        MOCK_ADMIN_GROUP_IDS,
+        MOCK_ADMIN_GROUP_NAMES,
+      );
+      if (!adminGate.ok) return { ok: false, error: adminGate.error };
+
+      if (typeof enabled !== 'boolean') {
+        return { ok: false, error: 'enabled must be a boolean' };
+      }
+
+      return {
+        ok: true,
+        member: memberPayload(session.member),
+        stepsWritesEnabled: await writeStepsWritesEnabled(enabled),
+        leaderboardHidden: await readLeaderboardHidden(),
       };
     },
   };
