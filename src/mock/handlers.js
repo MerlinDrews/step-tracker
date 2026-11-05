@@ -4,11 +4,13 @@ import {
   assertAdminMember,
   assertAuthorizedMember,
   assertSession,
+  assertStepsWritesEnabled,
   clientMemberView,
   findStepsForDate,
   historyForContact,
   leaderboardTotals,
   parseDateKey,
+  parseStepsWritesEnabled,
   personalTotal,
   resolveNameParts,
   resolveTrackingWindow,
@@ -40,6 +42,7 @@ import {
  *   getLeaderboardHidden?: () => boolean | Promise<boolean>,
  *   setLeaderboardHidden?: (hidden: boolean) => void | Promise<void>,
  *   trackingWindow?: { start: string, end: string } | null,
+ *   stepsWritesEnabled?: boolean | string,
  * }} storage
  */
 export function createMockHandlers(storage) {
@@ -47,6 +50,10 @@ export function createMockHandlers(storage) {
     storage.trackingWindow === undefined
       ? resolveTrackingWindow()
       : storage.trackingWindow;
+  const stepsWritesEnabled = parseStepsWritesEnabled(
+    storage.stepsWritesEnabled,
+    true,
+  );
 
   /** Fallback when the storage adapter does not persist the flag. */
   let leaderboardHiddenFallback = false;
@@ -192,10 +199,13 @@ export function createMockHandlers(storage) {
         canTrack: true,
         personalTotal: personalTotal(rows, publicMember.contactId),
         trackingWindow,
+        stepsWritesEnabled,
       };
     },
 
     async logSteps(stepsInput, dateInput) {
+      const writesGate = assertStepsWritesEnabled(stepsWritesEnabled);
+      if (!writesGate.ok) return { ok: false, error: writesGate.error };
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);
       if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };
@@ -265,6 +275,7 @@ export function createMockHandlers(storage) {
         ok: true,
         totalSteps: totals.totalSteps,
         leaderboardHidden: await readLeaderboardHidden(),
+        stepsWritesEnabled,
       };
     },
 
@@ -287,6 +298,8 @@ export function createMockHandlers(storage) {
     },
 
     async adminSetSteps(contactId, stepsInput, dateInput, profile = {}) {
+      const writesGate = assertStepsWritesEnabled(stepsWritesEnabled);
+      if (!writesGate.ok) return { ok: false, error: writesGate.error };
       const session = await storage.getSession();
       const sessionCheck = assertSession(session.token);
       if (!sessionCheck.ok) return { ok: false, error: sessionCheck.error };

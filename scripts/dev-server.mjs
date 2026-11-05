@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { csvToRows, rowsToCsv } from '../src/domain/csv.js';
+import { parseStepsWritesEnabled } from '../src/domain/writes.js';
 import { createMockHandlers } from '../src/mock/handlers.js';
 import { defaultSeedRows } from '../src/mock/members.js';
 
@@ -70,6 +71,10 @@ function createRequestStorage(req) {
     setLeaderboardHidden: (hidden) => {
       leaderboardHidden = Boolean(hidden);
     },
+    stepsWritesEnabled: parseStepsWritesEnabled(
+      process.env.STEPS_WRITES_ENABLED,
+      true,
+    ),
   };
 }
 

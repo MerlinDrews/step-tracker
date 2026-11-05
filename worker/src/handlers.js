@@ -2,6 +2,7 @@ import {
   assertActiveMember,
   assertAdminMember,
   assertAuthorizedMember,
+  assertStepsWritesEnabled,
   clientMemberView,
   parseDateKey,
   resolveNameParts,
@@ -145,6 +146,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
           waClientId: config.waClientId,
           waAccountId: config.waAccountId,
           waSiteUrl: config.waSiteUrl,
+          stepsWritesEnabled: config.stepsWritesEnabled,
         },
         corsHeaders,
       );
@@ -158,6 +160,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
         {
           totalSteps: await getClubTotal(db),
           leaderboardHidden: await isLeaderboardHidden(db),
+          stepsWritesEnabled: config.stepsWritesEnabled,
         },
         corsHeaders,
       );
@@ -239,6 +242,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
           canTrack: true,
           personalTotal: await getPersonalTotal(db, member.contactId),
           trackingWindow: config.trackingWindow,
+          stepsWritesEnabled: config.stepsWritesEnabled,
         },
         corsHeaders,
       );
@@ -248,6 +252,8 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (rateLimited(action, ctx)) {
         return jsonErr('Too many save attempts. Try again shortly.', 429, corsHeaders);
       }
+      const writesGate = assertStepsWritesEnabled(config.stepsWritesEnabled);
+      if (!writesGate.ok) return jsonErr(writesGate.error, 403, corsHeaders);
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertAuthorizedMember(
@@ -312,6 +318,8 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (rateLimited(action, ctx)) {
         return jsonErr('Too many admin edits. Try again shortly.', 429, corsHeaders);
       }
+      const writesGate = assertStepsWritesEnabled(config.stepsWritesEnabled);
+      if (!writesGate.ok) return jsonErr(writesGate.error, 403, corsHeaders);
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const adminGate = assertAdminMember(

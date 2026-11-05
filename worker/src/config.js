@@ -1,6 +1,7 @@
 import { resolveTrackingWindow } from '../../src/domain/dates.js';
 import { LEADERBOARD_LIMIT } from '../../src/domain/totals.js';
 import { parseAllowList } from '../../src/domain/membership.js';
+import { parseStepsWritesEnabled } from '../../src/domain/writes.js';
 
 /**
  * @param {Record<string, string|undefined>} env
@@ -26,5 +27,7 @@ export function loadConfig(env) {
     memberRefreshTtlMs:
       Math.max(60, Number(env.MEMBER_REFRESH_TTL_SEC) || 900) * 1000,
     trackingWindow,
+    /** When false, log + admin_set_steps are rejected (read-only challenge). */
+    stepsWritesEnabled: parseStepsWritesEnabled(env.STEPS_WRITES_ENABLED, true),
   };
 }

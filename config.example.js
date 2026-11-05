@@ -19,4 +19,8 @@ window.STEP_COUNTER_CONFIG = {
    */
   TRACKING_START: '2026-09-01',
   TRACKING_END: '2026-10-31',
+  /**
+   * When false, the UI treats logging as closed (Worker STEPS_WRITES_ENABLED is authoritative in prod).
+   */
+  STEPS_WRITES_ENABLED: true,
 };

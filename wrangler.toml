@@ -13,3 +13,5 @@ LEADERBOARD_LIMIT = "10"
 # Inclusive challenge window (keep in sync with config.js TRACKING_*).
 TRACKING_START = "2026-09-01"
 TRACKING_END = "2026-10-31"
+# false = reject log / admin step edits (totals + leaderboard stay readable).
+STEPS_WRITES_ENABLED = "false"

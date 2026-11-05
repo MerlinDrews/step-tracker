@@ -6,7 +6,9 @@ import {
   formatSteps,
   formatTrackingWindowLabel,
   parseDateKey,
+  parseStepsWritesEnabled,
   resolveTrackingWindow,
+  STEPS_WRITES_DISABLED_MESSAGE,
   todayKey,
   toLeaderboardView,
   trackingDateInputBounds,
@@ -34,6 +36,8 @@ let clubTotalSteps = null;
 let isAdmin = false;
 /** Global admin flag — when true, the leaderboard is hidden for all visitors. */
 let leaderboardHidden = false;
+/** When false, step upserts are rejected server-side and the UI disables save controls. */
+let stepsWritesEnabled = true;
 
 /** @type {Array<{ contactId: string, name: string, email?: string, steps: number }>} */
 let adminContributors = [];
@@ -129,9 +133,41 @@ const els = {
   adminLeaderboardToggle: $('admin-leaderboard-toggle'),
   adminFormError: $('admin-form-error'),
   adminFormSuccess: $('admin-form-success'),
+  writesClosedHint: $('writes-closed-hint'),
+  adminWritesClosedHint: $('admin-writes-closed-hint'),
   trackRangeHint: $('track-range-hint'),
   adminRangeHint: $('admin-range-hint'),
 };
+
+function applyStepsWritesEnabled(enabled) {
+  if (typeof enabled === 'boolean') {
+    stepsWritesEnabled = enabled;
+  } else if (Object.prototype.hasOwnProperty.call(getConfig(), 'STEPS_WRITES_ENABLED')) {
+    stepsWritesEnabled = parseStepsWritesEnabled(getConfig().STEPS_WRITES_ENABLED, true);
+  }
+
+  if (els.saveBtn) {
+    els.saveBtn.disabled = !stepsWritesEnabled;
+    if (!stepsWritesEnabled) {
+      els.saveBtn.textContent = 'Logging closed';
+    }
+  }
+  if (els.stepsInput) els.stepsInput.disabled = !stepsWritesEnabled;
+  if (els.adminSaveBtn) {
+    els.adminSaveBtn.disabled = !stepsWritesEnabled;
+    if (!stepsWritesEnabled) {
+      els.adminSaveBtn.textContent = 'Logging closed';
+    }
+  }
+  if (els.adminSteps) els.adminSteps.disabled = !stepsWritesEnabled;
+  if (els.writesClosedHint) {
+    els.writesClosedHint.hidden = stepsWritesEnabled;
+    els.writesClosedHint.textContent = STEPS_WRITES_DISABLED_MESSAGE;
+  }
+  if (els.adminWritesClosedHint) {
+    els.adminWritesClosedHint.hidden = stepsWritesEnabled;
+  }
+}
 
 function clubLoginUrl() {
   const site = String(getConfig().WA_SITE_URL || '').replace(/\/$/, '');
@@ -235,7 +271,12 @@ function updateFormLabels() {
   const isToday = selectedDate === today;
   const bounds = trackingDateInputBounds(today, window);
   els.stepsLabel.textContent = isToday ? 'Steps today' : `Steps for ${label}`;
-  els.saveBtn.textContent = isToday ? "Save today's steps" : `Save steps for ${label}`;
+  els.saveBtn.textContent = !stepsWritesEnabled
+    ? 'Logging closed'
+    : isToday
+      ? "Save today's steps"
+      : `Save steps for ${label}`;
+  els.saveBtn.disabled = !stepsWritesEnabled;
   els.dateInput.value = selectedDate;
   els.dateInput.min = bounds.min;
   els.dateInput.max = bounds.max;
@@ -479,6 +520,7 @@ function maybeShowAdmin(member) {
   els.sectionAdmin.hidden = false;
   updateAdminLeaderboardToggle();
   updateAdminFormLabels();
+  applyStepsWritesEnabled(stepsWritesEnabled);
   renderAdminCalendar();
 }
 
@@ -494,9 +536,12 @@ function updateAdminFormLabels() {
   const isToday = adminSelectedDate === today;
   const bounds = trackingDateInputBounds(today, window);
   els.adminStepsLabel.textContent = isToday ? 'Steps today' : `Steps for ${label}`;
-  els.adminSaveBtn.textContent = isToday
-    ? "Save today's steps for participant"
-    : `Save steps for ${label}`;
+  els.adminSaveBtn.textContent = !stepsWritesEnabled
+    ? 'Logging closed'
+    : isToday
+      ? "Save today's steps for participant"
+      : `Save steps for ${label}`;
+  els.adminSaveBtn.disabled = !stepsWritesEnabled;
   els.adminDate.value = adminSelectedDate;
   els.adminDate.min = bounds.min;
   els.adminDate.max = bounds.max;
@@ -666,6 +711,11 @@ function setupAdminPanel() {
     setMessage(els.adminFormError, '');
     setMessage(els.adminFormSuccess, '');
 
+    if (!stepsWritesEnabled) {
+      setMessage(els.adminFormError, STEPS_WRITES_DISABLED_MESSAGE);
+      return;
+    }
+
     const contactId = els.adminParticipant?.value;
     if (!contactId) {
       setMessage(els.adminFormError, 'Choose a participant');
@@ -723,7 +773,7 @@ function setupAdminPanel() {
         }
       }
     } finally {
-      els.adminSaveBtn.disabled = false;
+      els.adminSaveBtn.disabled = !stepsWritesEnabled;
       setLoading(false);
     }
   });
@@ -899,6 +949,11 @@ function setupForm() {
     setMessage(els.formError, '');
     setMessage(els.formSuccess, '');
 
+    if (!stepsWritesEnabled) {
+      setMessage(els.formError, STEPS_WRITES_DISABLED_MESSAGE);
+      return;
+    }
+
     const validated = validateSteps(els.stepsInput.value);
     if (!validated.ok) {
       setMessage(els.formError, validated.error);
@@ -943,7 +998,7 @@ function setupForm() {
         }
       }
     } finally {
-      els.saveBtn.disabled = false;
+      els.saveBtn.disabled = !stepsWritesEnabled;
       setLoading(false);
     }
   });
@@ -955,6 +1010,9 @@ async function initTotal() {
     renderPublicTotal(res.totalSteps);
     if (typeof res.leaderboardHidden === 'boolean') {
       applyLeaderboardHidden(res.leaderboardHidden);
+    }
+    if (typeof res.stepsWritesEnabled === 'boolean') {
+      applyStepsWritesEnabled(res.stepsWritesEnabled);
     }
   } else {
     renderPublicTotal(0);
@@ -997,6 +1055,9 @@ async function initTrack() {
     history = me.history || {};
     if (me.selectedDate) selectedDate = me.selectedDate;
     applyDaySteps(me.daySteps);
+    if (typeof me.stepsWritesEnabled === 'boolean') {
+      applyStepsWritesEnabled(me.stepsWritesEnabled);
+    }
     updateFormLabels();
     renderCalendar();
     maybeShowAdmin(me.member);
@@ -1016,6 +1077,7 @@ async function initTrack() {
 
 async function init() {
   showPartSections();
+  applyStepsWritesEnabled();
 
   setupAuthUi();
   setupCalendar();
