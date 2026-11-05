@@ -222,6 +222,7 @@ describe('createMockApi', () => {
     expect((await api.adminParticipant('1001')).ok).toBe(false);
     expect((await api.adminSetSteps('1001', 100)).ok).toBe(false);
     expect((await api.adminSetLeaderboardHidden(true)).ok).toBe(false);
+    expect((await api.adminSetStepsWritesEnabled(false)).ok).toBe(false);
   });
 
   it('rejects logging outside the tracking window when configured', async () => {
@@ -245,5 +246,31 @@ describe('createMockApi', () => {
     const outside = await gated.logSteps(100, '2026-08-08');
     expect(outside.ok).toBe(false);
     expect(outside.error).toMatch(/starts/i);
+  });
+
+  it('lets admin close and reopen step logging for everyone', async () => {
+    await api.loginAs('admin');
+    const closed = await api.adminSetStepsWritesEnabled(false);
+    expect(closed.ok).toBe(true);
+    expect(closed.stepsWritesEnabled).toBe(false);
+
+    expect((await api.getPublicTotal()).stepsWritesEnabled).toBe(false);
+    expect((await api.adminSetSteps('1001', 9999, '2026-08-08')).ok).toBe(false);
+
+    await api.loginAs('alex');
+    expect((await api.logSteps(2000, '2026-08-08')).ok).toBe(false);
+
+    await api.loginAs('admin');
+    const opened = await api.adminSetStepsWritesEnabled(true);
+    expect(opened.ok).toBe(true);
+    expect(opened.stepsWritesEnabled).toBe(true);
+    expect((await api.adminSetSteps('1001', 4321, '2026-08-08')).ok).toBe(true);
+  });
+
+  it('rejects step-write lock toggle from non-admin members', async () => {
+    await api.loginAs('alex');
+    const res = await api.adminSetStepsWritesEnabled(false);
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/admin|configured/i);
   });
 });

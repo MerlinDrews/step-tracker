@@ -104,5 +104,12 @@ export function createLocalHttpApi() {
         body: { hidden: Boolean(hidden) },
       });
     },
+
+    async adminSetStepsWritesEnabled(enabled) {
+      return request('/admin/steps-writes-enabled', {
+        method: 'POST',
+        body: { enabled: Boolean(enabled) },
+      });
+    },
   };
 }

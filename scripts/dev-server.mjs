@@ -25,6 +25,7 @@ const MIME = {
 const sessions = new Map();
 /** Shared across requests so admin hide/show applies to all local users. */
 let leaderboardHidden = false;
+let stepsWritesEnabled = true;
 
 async function ensureCsv() {
   await fs.mkdir(path.dirname(CSV_PATH), { recursive: true });
@@ -69,6 +70,10 @@ function createRequestStorage(req) {
     getLeaderboardHidden: () => leaderboardHidden,
     setLeaderboardHidden: (hidden) => {
       leaderboardHidden = Boolean(hidden);
+    },
+    getStepsWritesEnabled: () => stepsWritesEnabled,
+    setStepsWritesEnabled: (enabled) => {
+      stepsWritesEnabled = Boolean(enabled);
     },
   };
 }
@@ -150,6 +155,12 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && route === '/admin/leaderboard-hidden') {
     const body = await readJson(req);
     const result = await handlers.adminSetLeaderboardHidden(body.hidden);
+    const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
+    return sendJson(res, status, result);
+  }
+  if (req.method === 'POST' && route === '/admin/steps-writes-enabled') {
+    const body = await readJson(req);
+    const result = await handlers.adminSetStepsWritesEnabled(body.enabled);
     const status = result.ok ? 200 : result.error === 'Not signed in' ? 401 : 403;
     return sendJson(res, status, result);
   }

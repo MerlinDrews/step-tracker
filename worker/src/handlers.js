@@ -2,6 +2,7 @@ import {
   assertActiveMember,
   assertAdminMember,
   assertAuthorizedMember,
+  assertStepsWritesEnabled,
   clientMemberView,
   parseDateKey,
   resolveNameParts,
@@ -29,9 +30,11 @@ import {
   getDaySteps,
   getHistoryForContact,
   getLeaderboardTotals,
+  areStepsWritesEnabled,
   getPersonalTotal,
   isLeaderboardHidden,
   setLeaderboardHidden,
+  setStepsWritesEnabled,
   updateContactDisplayNames,
   upsertDaySteps,
   writeAuditLog,
@@ -145,6 +148,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
           waClientId: config.waClientId,
           waAccountId: config.waAccountId,
           waSiteUrl: config.waSiteUrl,
+          stepsWritesEnabled: await areStepsWritesEnabled(db),
         },
         corsHeaders,
       );
@@ -158,6 +162,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
         {
           totalSteps: await getClubTotal(db),
           leaderboardHidden: await isLeaderboardHidden(db),
+          stepsWritesEnabled: await areStepsWritesEnabled(db),
         },
         corsHeaders,
       );
@@ -199,6 +204,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
           member: memberPayload(member, config),
           totals,
           leaderboardHidden: await isLeaderboardHidden(db),
+          stepsWritesEnabled: await areStepsWritesEnabled(db),
           ...(await trackExtras(db, member, config)),
         },
         corsHeaders,
@@ -239,6 +245,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
           canTrack: true,
           personalTotal: await getPersonalTotal(db, member.contactId),
           trackingWindow: config.trackingWindow,
+          stepsWritesEnabled: await areStepsWritesEnabled(db),
         },
         corsHeaders,
       );
@@ -248,6 +255,8 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (rateLimited(action, ctx)) {
         return jsonErr('Too many save attempts. Try again shortly.', 429, corsHeaders);
       }
+      const writesGate = assertStepsWritesEnabled(await areStepsWritesEnabled(db));
+      if (!writesGate.ok) return jsonErr(writesGate.error, 403, corsHeaders);
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const gate = assertAuthorizedMember(
@@ -312,6 +321,8 @@ export async function handleAction(action, method, body, config, db, ctx) {
       if (rateLimited(action, ctx)) {
         return jsonErr('Too many admin edits. Try again shortly.', 429, corsHeaders);
       }
+      const writesGate = assertStepsWritesEnabled(await areStepsWritesEnabled(db));
+      if (!writesGate.ok) return jsonErr(writesGate.error, 403, corsHeaders);
       const member = await resolveMember(body, config);
       if (!member) return jsonErr('Not signed in', 401, corsHeaders);
       const adminGate = assertAdminMember(
@@ -454,6 +465,7 @@ export async function handleAction(action, method, body, config, db, ctx) {
           member: memberPayload(member, config),
           contributors: toAdminContributors(withPublicNames(await getAllContributors(db))),
           leaderboardHidden: await isLeaderboardHidden(db),
+          stepsWritesEnabled: await areStepsWritesEnabled(db),
         },
         corsHeaders,
       );
@@ -495,6 +507,49 @@ export async function handleAction(action, method, body, config, db, ctx) {
         {
           member: memberPayload(member, config),
           leaderboardHidden: hidden,
+          stepsWritesEnabled: await areStepsWritesEnabled(db),
+        },
+        corsHeaders,
+      );
+    }
+
+    if (action === 'admin_set_steps_writes_enabled' && method === 'POST') {
+      if (rateLimited(action, ctx)) {
+        return jsonErr('Too many admin edits. Try again shortly.', 429, corsHeaders);
+      }
+      const member = await resolveMember(body, config);
+      if (!member) return jsonErr('Not signed in', 401, corsHeaders);
+      const adminGate = assertAdminMember(
+        member,
+        config.adminGroupIds,
+        config.adminGroupNames,
+      );
+      if (!adminGate.ok) return jsonErr(adminGate.error, 403, corsHeaders);
+
+      if (typeof body?.enabled !== 'boolean') {
+        return jsonErr('enabled must be a boolean', 400, corsHeaders);
+      }
+
+      const enabled = body.enabled;
+      const previous = await areStepsWritesEnabled(db);
+      await setStepsWritesEnabled(db, enabled);
+      const updated_at = new Date().toISOString();
+      await writeAuditLog(db, {
+        at: updated_at,
+        action: 'admin_set_steps_writes_enabled',
+        target_contact_id: null,
+        target_date: null,
+        old_steps: previous ? 1 : 0,
+        new_steps: enabled ? 1 : 0,
+        actor_contact_id: member.contactId,
+        actor_name: member.name,
+      });
+
+      return jsonOk(
+        {
+          member: memberPayload(member, config),
+          stepsWritesEnabled: enabled,
+          leaderboardHidden: await isLeaderboardHidden(db),
         },
         corsHeaders,
       );

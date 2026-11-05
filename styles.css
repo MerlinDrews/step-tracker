@@ -466,7 +466,11 @@ body {
 }
 
 .aiwcd-step-counter .admin__visibility-lede {
-  margin-bottom: 0.75rem;
+  margin: 1rem 0 0.75rem;
+}
+
+.aiwcd-step-counter .admin__visibility-lede:first-child {
+  margin-top: 0;
 }
 
 .aiwcd-step-counter select.field__input {

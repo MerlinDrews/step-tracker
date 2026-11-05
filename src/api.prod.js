@@ -196,5 +196,9 @@ export function createProdApi(config) {
     async adminSetLeaderboardHidden(hidden) {
       return postAction('admin_set_leaderboard_hidden', { hidden: Boolean(hidden) });
     },
+
+    async adminSetStepsWritesEnabled(enabled) {
+      return postAction('admin_set_steps_writes_enabled', { enabled: Boolean(enabled) });
+    },
   };
 }

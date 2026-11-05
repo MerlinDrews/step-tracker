@@ -9,6 +9,7 @@ describe('rateLimit', () => {
         'admin_participant',
         'admin_set_leaderboard_hidden',
         'admin_set_steps',
+        'admin_set_steps_writes_enabled',
         'auth_exchange',
         'leaderboard',
         'log',

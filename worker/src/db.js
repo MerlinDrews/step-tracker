@@ -191,6 +191,8 @@ export async function writeAuditLog(db, row) {
 }
 
 const LEADERBOARD_HIDDEN_KEY = 'leaderboard_hidden';
+/** Default on when unset — admins can lock logging via the UI. */
+const STEPS_WRITES_ENABLED_KEY = 'steps_writes_enabled';
 
 export async function getAppSetting(db, key, defaultValue = null) {
   const row = await db
@@ -216,4 +218,12 @@ export async function isLeaderboardHidden(db) {
 
 export async function setLeaderboardHidden(db, hidden) {
   await setAppSetting(db, LEADERBOARD_HIDDEN_KEY, hidden ? '1' : '0');
+}
+
+export async function areStepsWritesEnabled(db) {
+  return (await getAppSetting(db, STEPS_WRITES_ENABLED_KEY, '1')) === '1';
+}
+
+export async function setStepsWritesEnabled(db, enabled) {
+  await setAppSetting(db, STEPS_WRITES_ENABLED_KEY, enabled ? '1' : '0');
 }

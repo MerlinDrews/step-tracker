@@ -122,6 +122,10 @@
               Save steps
             </button>
 
+            <p id="writes-closed-hint" class="lede" hidden>
+              Step logging is closed. Totals and the leaderboard are still available to view.
+            </p>
+
             <p id="form-error" class="msg msg--error" hidden></p>
             <p id="form-success" class="msg msg--ok" hidden></p>
           </div>
@@ -159,6 +163,12 @@
             </p>
             <button id="admin-leaderboard-toggle" type="button" class="btn btn--secondary btn--block">
               Hide leaderboard
+            </button>
+            <p class="lede admin__visibility-lede">
+              Close or reopen step logging for everyone (member saves and admin step edits).
+            </p>
+            <button id="admin-writes-toggle" type="button" class="btn btn--secondary btn--block">
+              Close step logging
             </button>
           </div>
 
@@ -206,6 +216,10 @@
           <button id="admin-save-btn" type="button" class="btn btn--secondary btn--block">
             Save for participant
           </button>
+
+          <p id="admin-writes-closed-hint" class="lede" hidden>
+            Step logging is closed. Participant step edits are disabled.
+          </p>
 
           <p id="admin-form-error" class="msg msg--error" hidden></p>
           <p id="admin-form-success" class="msg msg--ok" hidden></p>

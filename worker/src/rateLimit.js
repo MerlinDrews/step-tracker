@@ -30,6 +30,7 @@ export const ACTION_LIMITS = {
   admin_participant: { max: 60, windowMs: 15 * 60 * 1000 },
   admin_contributors: { max: 30, windowMs: 15 * 60 * 1000 },
   admin_set_leaderboard_hidden: { max: 30, windowMs: 15 * 60 * 1000 },
+  admin_set_steps_writes_enabled: { max: 30, windowMs: 15 * 60 * 1000 },
   logout: { max: 30, windowMs: 15 * 60 * 1000 },
 };
 

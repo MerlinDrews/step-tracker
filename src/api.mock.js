@@ -10,6 +10,7 @@ export function createMockApi(initialRows = defaultSeedRows()) {
   let token = null;
   let member = null;
   let leaderboardHidden = false;
+  let stepsWritesEnabled = true;
 
   const api = createMockHandlers({
     loadRows: () => rows,
@@ -25,6 +26,10 @@ export function createMockApi(initialRows = defaultSeedRows()) {
     setLeaderboardHidden: (hidden) => {
       leaderboardHidden = Boolean(hidden);
     },
+    getStepsWritesEnabled: () => stepsWritesEnabled,
+    setStepsWritesEnabled: (enabled) => {
+      stepsWritesEnabled = Boolean(enabled);
+    },
     // Unit tests control dates freely; local CSV server uses the real window.
     trackingWindow: null,
   });
@@ -36,9 +41,10 @@ export function createMockApi(initialRows = defaultSeedRows()) {
       token = null;
       member = null;
       leaderboardHidden = false;
+      stepsWritesEnabled = true;
     },
     _getState() {
-      return { sessionToken: token, member, rows, leaderboardHidden };
+      return { sessionToken: token, member, rows, leaderboardHidden, stepsWritesEnabled };
     },
   };
 }
